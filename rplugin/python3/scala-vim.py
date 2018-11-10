@@ -29,6 +29,26 @@ class ScalaVim(object):
             except Exception:
                 self.nvim.err_write('scala-vim: failed to connect'
                                     'to completion engine...' + '\n')
+        self.nvim.call('timer_start', 500, 'ScalaUpdateErrors', {'repeat': -1})
+
+    @neovim.function('ScalaUpdateErrors')
+    def update_errors(self, timer):
+        self.update_errors_and_populate_quickfix()
+
+    def reload_buffer(self):
+        buf = self.nvim.current.buffer
+        self.engine.reloadFile('current_buffer', '\n'.join(buf))
+
+    def update_errors_and_populate_quickfix(self):
+        errors = self.engine.getErrors()
+        # self.nvim.out_write(str(errors) + '\n')
+        qflist = []
+        for error in errors:
+            lnum, text, severity = error.split(';')
+            qflist.append({'bufnr': 1, 'lnum': int(lnum), 'text': text})
+        self.nvim.call('setqflist', qflist)
+        # self.nvim.command('cw')
+        # self.nvim.command('wincmd p')
 
     @neovim.command('ScalaType')
     def get_type(self):
@@ -39,19 +59,48 @@ class ScalaVim(object):
         tpe = self.engine.askTypeAt('current_buffer', '\n'.join(buf), offset)
         self.nvim.out_write(tpe + '\n')
 
-    @neovim.command('ScalaErrors')
-    def get_errors(self):
-        errors = self.engine.getErrors()
-        self.nvim.err_write(errors + '\n')
+    @neovim.command('ScalaCompleteType')
+    def get_type_completion(self):
+        window = self.nvim.current.window
+        cursor = window.cursor
+        buf = self.nvim.current.buffer
+        offset = get_offset_from_cursor(buf[:], cursor)
+        members = self.engine.askTypeCompletion('current_buffer',
+                                                '\n'.join(buf), offset)
+        # self.nvim.out_write(members)
+
+    @neovim.command('ScalaCompleteScope')
+    def get_scope_completion(self):
+        window = self.nvim.current.window
+        cursor = window.cursor
+        buf = self.nvim.current.buffer
+        offset = get_offset_from_cursor(buf[:], cursor)
+        members = self.engine.askScopeCompletion('current_buffer',
+                                                 '\n'.join(buf), offset)
+        # self.nvim.out_write(members)
+
+
+    #@neovim.autocmd('CursorHold', pattern='*.scala')
+    #def on_cursor_hold(self):
+    #    self.update_errors_and_populate_quickfix()
+
+    #@neovim.autocmd('CursorHoldI', pattern='*.scala')
+    #def on_cursor_hold_i(self):
+    #    self.update_errors_and_populate_quickfix()
 
     @neovim.autocmd('BufEnter', pattern='*.scala')
     def on_buf_enter(self):
         self._initialize()
 
-    @neovim.autocmd('BufWritePost', pattern='*.scala')
-    def after_buffer_write(self):
-        buf = self.nvim.current.buffer
-        self.engine.reloadFile('current_buffer', '\n'.join(buf))
+    @neovim.autocmd('TextChanged', pattern='*.scala')
+    def on_text_changed(self):
+        self.nvim.out_write('text changed triggered')
+        self.reload_buffer()
+
+    @neovim.autocmd('TextChangedI', pattern='*.scala')
+    def on_text_changed_i(self):
+        self.nvim.out_write('text changed i triggered')
+        self.reload_buffer()
 
     @neovim.command('TestCommand', nargs='*', range='')
     def testcommand(self, args, range):
