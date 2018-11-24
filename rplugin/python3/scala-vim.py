@@ -20,12 +20,13 @@ class ScalaVim(object):
     def __init__(self, nvim):
         self.nvim = nvim
         self.initialized = False
+        self.qflist = []
 
     def initialize(self):
         if not self.initialized:
             self.nvim.command('highlight ScalaErrorStyle ctermbg=red gui=underline')
             self.nvim.command('set omnifunc=ScalaCompleteFunc')
-            self.nvim.command('set completeopt=longest,menuone')
+            # self.nvim.command('set completeopt=longest,menuone')
             self.nvim.call('timer_start', 1000,
                            'ScalaUpdateErrors', {'repeat': -1})
             self.initialized = True
@@ -36,7 +37,8 @@ class ScalaVim(object):
     def reload_current_buffer(self):
         buf = self.nvim.current.buffer
         content = '\n'.join(buf)
-        data = {'filename': buf.name, 'fileContents': content}
+        file_name = self.nvim.call('expand', '%:p')
+        data = {'filename': file_name, 'fileContents': content}
         try:
             r = requests.post('http://localhost:8080/reload-file', json=data)
             if r.status_code != requests.codes.ok:
@@ -58,9 +60,11 @@ class ScalaVim(object):
                 path, lnum, text, severity = error
                 lines.append(int(lnum))
                 qflist.append({'filename': path, 'lnum': int(lnum),
-                               'text': text})
+                               'text': severity + ':' + text})
             self.nvim.call('setqflist', qflist)
+            self.nvim.command('let w:quickfix_title="neovim-scala"')
             self.nvim.call('matchaddpos', 'ScalaErrorStyle', lines)
+            self.qflist = self.nvim.call('getqflist')
             # self.nvim.command('cw')
             # self.nvim.command('wincmd p')
 
@@ -70,13 +74,14 @@ class ScalaVim(object):
         buf = self.nvim.current.buffer
         offset = get_offset_from_cursor(buf[:], cursor)
         content = '\n'.join(buf)
-        data = {'filename': buf.name, 'fileContents': content,
+        file_name = self.nvim.call('expand', '%:p')
+        data = {'filename': file_name, 'fileContents': content,
                 'offset': offset}
         resp = requests.post('http://localhost:8080/{}-completion'.format(completion), json=data)
         if resp.status_code == requests.codes.ok:
             res = []
             for word, menu in resp.json():
-                res.append({'word': word, 'menu': menu})
+                res.append({'word': word, 'menu': menu, 'dup': 1})
             return res
         self.notify('failed to get type')
         return []
@@ -104,10 +109,8 @@ class ScalaVim(object):
             row, col, startcol = detect_row_column_start()
             return startcol
         else:
-            type_completion = self.get_completion('type')
-            if type_completion:
-                return type_completion
-            return self.get_completion('scope')
+            type_completion = self.get_completion('type') + self.get_completion('scope')
+            return [comp for comp in type_completion if comp['word'].startswith(base)]
 
     @neovim.command('ScalaType')
     def get_type(self):
@@ -116,7 +119,8 @@ class ScalaVim(object):
         buf = self.nvim.current.buffer
         offset = get_offset_from_cursor(buf[:], cursor)
         content = '\n'.join(buf)
-        data = {'filename': buf.name, 'fileContents': content,
+        file_name = self.nvim.call('expand', '%:p')
+        data = {'filename': file_name, 'fileContents': content,
                 'offset': offset}
         resp = requests.post('http://localhost:8080/ask-type-at', json=data)
         if resp.status_code == requests.codes.ok:
@@ -160,6 +164,16 @@ class ScalaVim(object):
     def on_text_changed_i(self):
         # self.nvim.out_write('text changed i triggered')
         self.reload_current_buffer()
+
+    @neovim.autocmd('CursorMoved', pattern='*.scala')
+    def on_cursor_moved(self):
+        line_num = self.nvim.current.window.cursor[0]
+        buf_num = self.nvim.current.buffer.number
+        messages = []
+        for item in self.qflist:
+            if (item['bufnr'] == buf_num) and (item['lnum'] == line_num):
+                messages.append(item['text'])
+        self.nvim.out_write(' | '.join(messages) + '\n')
 
     # @neovim.command('TestCommand', nargs='*', range='')
     # def testcommand(self, args, range):
