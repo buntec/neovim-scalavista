@@ -1,5 +1,4 @@
 import requests
-
 import neovim
 
 
@@ -13,26 +12,32 @@ def get_offset_from_cursor(buf, cursor):
     return offset
 
 
-
 @neovim.plugin
-class ScalaVim(object):
+class Scalavista(object):
 
     def __init__(self, nvim):
         self.nvim = nvim
         self.initialized = False
         self.qflist = []
+        self.server_url = None
+
+    def set_server_url(self, port):
+        self.server_url = 'http://localhost:{}'.format(port.strip())
 
     def initialize(self):
         if not self.initialized:
-            self.nvim.command('highlight ScalaErrorStyle ctermbg=red gui=underline')
-            self.nvim.command('set omnifunc=ScalaCompleteFunc')
+            self.nvim.command('highlight ScalavistaErrorStyle ctermbg=red gui=underline')
+            self.nvim.command('set omnifunc=ScalavistaCompleteFunc')
             # self.nvim.command('set completeopt=longest,menuone')
             self.nvim.call('timer_start', 1000,
-                           'ScalaUpdateErrors', {'repeat': -1})
+                           'ScalavistaUpdateErrors', {'repeat': -1})
             self.initialized = True
 
     def notify(self, msg):
-        self.nvim.out_write('scala-neovim> {}\n'.format(msg))
+        self.nvim.out_write('scalavista> {}\n'.format(msg))
+
+    def error(self, msg):
+        self.nvim.out_write('scalavista> {}\n'.format(msg))
 
     def reload_current_buffer(self):
         buf = self.nvim.current.buffer
@@ -40,18 +45,18 @@ class ScalaVim(object):
         file_name = self.nvim.call('expand', '%:p')
         data = {'filename': file_name, 'fileContents': content}
         try:
-            r = requests.post('http://localhost:8080/reload-file', json=data)
+            r = requests.post(self.server_url + '/reload-file', json=data)
             if r.status_code != requests.codes.ok:
-                self.notify('failed to reload buffer')
-        except Exception:
-            self.notify('failed to reload buffer')
+                self.error('failed to reload buffer')
+        except Exception as e:
+            self.error('failed to reload buffer:')
 
     def update_errors_and_populate_quickfix(self):
         try:
-            response = requests.get('http://localhost:8080/errors')
+            response = requests.get(self.server_url + '/errors')
             errors = response.json()
         except Exception:
-            self.notify('failed to get errors')
+            self.error('failed to get errors')
         else:
             self.nvim.call('clearmatches')
             qflist = []
@@ -63,7 +68,7 @@ class ScalaVim(object):
                                'text': severity + ':' + text})
             self.nvim.call('setqflist', qflist)
             self.nvim.command('let w:quickfix_title="neovim-scala"')
-            self.nvim.call('matchaddpos', 'ScalaErrorStyle', lines)
+            self.nvim.call('matchaddpos', 'ScalavistaErrorStyle', lines)
             self.qflist = self.nvim.call('getqflist')
             # self.nvim.command('cw')
             # self.nvim.command('wincmd p')
@@ -77,20 +82,20 @@ class ScalaVim(object):
         file_name = self.nvim.call('expand', '%:p')
         data = {'filename': file_name, 'fileContents': content,
                 'offset': offset}
-        resp = requests.post('http://localhost:8080/{}-completion'.format(completion), json=data)
+        resp = requests.post(self.server_url + '/{}-completion'.format(completion), json=data)
         if resp.status_code == requests.codes.ok:
             res = []
             for word, menu in resp.json():
                 res.append({'word': word, 'menu': menu, 'dup': 1})
             return res
-        self.notify('failed to get type')
+        self.error('failed to get type')
         return []
 
-    @neovim.function('ScalaUpdateErrors')
+    @neovim.function('ScalavistaUpdateErrors')
     def update_errors(self, timer):
         self.update_errors_and_populate_quickfix()
 
-    @neovim.function('ScalaCompleteFunc', sync=True)
+    @neovim.function('ScalavistaCompleteFunc', sync=True)
     def scala_complete_func(self, findstart_and_base):
         findstart = findstart_and_base[0]
         base = findstart_and_base[1]
@@ -112,7 +117,7 @@ class ScalaVim(object):
             type_completion = self.get_completion('type') + self.get_completion('scope')
             return [comp for comp in type_completion if comp['word'].startswith(base)]
 
-    @neovim.command('ScalaType')
+    @neovim.command('ScalavistaType')
     def get_type(self):
         window = self.nvim.current.window
         cursor = window.cursor
@@ -122,17 +127,42 @@ class ScalaVim(object):
         file_name = self.nvim.call('expand', '%:p')
         data = {'filename': file_name, 'fileContents': content,
                 'offset': offset}
-        resp = requests.post('http://localhost:8080/ask-type-at', json=data)
+        resp = requests.post(self.server_url + '/ask-type-at', json=data)
         if resp.status_code == requests.codes.ok:
             self.nvim.out_write(resp.text + '\n')
         else:
-            self.notify('failed to get type')
+            self.error('failed to get type')
 
-    @neovim.command('ScalaErrors')
+    @neovim.command('ScalavistaGoto')
+    def get_pos(self):
+        window = self.nvim.current.window
+        cursor = window.cursor
+        buf = self.nvim.current.buffer
+        offset = get_offset_from_cursor(buf[:], cursor)
+        content = '\n'.join(buf)
+        file_name = self.nvim.call('expand', '%:p')
+        data = {'filename': file_name, 'fileContents': content,
+                'offset': offset}
+        resp = requests.post(self.server_url + '/ask-pos-at', json=data)
+        if resp.status_code == requests.codes.ok:
+            file = resp.json()['file']
+            line = resp.json()['line']
+            col = resp.json()['column']
+            self.nvim.command('edit {}'.format(file))
+            self.nvim.call('cursor', line, col)
+        else:
+            self.error('goto failed')
+
+    @neovim.command('ScalavistaErrors')
     def scala_errors(self):
         self.update_errors_and_populate_quickfix()
 
-    # @neovim.command('ScalaCompleteScope')
+    @neovim.command('ScalavistaSetPort', nargs='1')
+    def set_port(self, args):
+        self.set_server_url(args[0])
+        self.notify(self.server_url)
+
+    # @neovim.command('ScalavistaCompleteScope')
     # def get_scope_completion(self):
     #     window = self.nvim.current.window
     #     cursor = window.cursor
