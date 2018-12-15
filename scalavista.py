@@ -1,47 +1,70 @@
-from subprocess import Popen, PIPE
+from subprocess import Popen
 import glob
 import json
 import os
 import requests
 import subprocess
 import time
+import crayons
+
+
+PROMPT = 'scalavista>'
 
 
 def info(msg):
-    print('scalavista> {}'.format(msg))
+    print('{}#{} {}'.format('scalavista', crayons.magenta('info'), msg))
+
+
+def success(msg):
+    print('{}#{} {}'.format('scalavista', crayons.green('success'), msg))
+
+
+def warn(msg):
+    print('{}#{} {}'.format('scalavista', crayons.yellow('warn'), msg))
+
+
+def error(msg):
+    print('{}#{} {}'.format('scalavista', crayons.red('error'), msg))
 
 
 def launch():
 
-    info('launching server...')
+    try:
+        with open('scalavista.json') as f:
+            conf = json.load(f)
+    except FileNotFoundError:
+        error('missing "scalavista.json" - please use the sbt-scalavista plugin to generate it.')
+        return
 
-    with open('scalavista.json') as f:
-        conf = json.load(f)
+    info('launching server...')
 
     scala_binary_version = conf['scalaBinaryVersion']
 
-    scalavista_jar = glob.glob(os.path.expanduser('~/.scalavista/scalavista-*_{}.jar'.format(scala_binary_version)))[0]
+    base_dir = os.path.dirname(os.path.realpath(__file__))
+    jar_path = os.path.join(base_dir, 'jars', r'scalavista-*_{}.jar'.format(scala_binary_version))
+    scalavista_jar = glob.glob(jar_path)[0]
 
     if not os.path.isfile(scalavista_jar):
         raise RuntimeError('jar not found: {}'.format(scalavista_jar))
 
     classpath = conf['classpath'] + ':' + scalavista_jar
-    server_process = Popen(['java', '-cp', classpath, 'org.scalavista.AkkaServer'], stdout=PIPE, stderr=PIPE)
-    server_port = server_process.stdout.readline().decode('utf-8')
-    server_url = 'http://localhost:{}'.format(server_port).strip()
+    server_process = Popen(['java', '-cp', classpath, 'org.scalavista.AkkaServer'])
+    # server_port = server_process.stdout.readline().decode('utf-8')
+    # server_url = 'http://localhost:{}'.format(server_port).strip()
+    server_url = 'http://localhost:9317'
 
     for i in range(10):
         try:
             info('testing connection...')
             req = requests.get(server_url + '/alive')
-        except Exception as e:
+        except Exception:
             time.sleep(1)
         else:
             if req.status_code == requests.codes.ok:
                 break
     else:
         server_process.terminate()
-        info('failed to start server - quitting...')
+        error('failed to start server - quitting...')
         return
 
     for source_file in conf['sources']:
@@ -50,14 +73,11 @@ def launch():
         try:
             req = requests.post(server_url + '/reload-file', json=data)
             if req.status_code != requests.codes.ok:
-                info('failed to load file {}'.format(source_file))
+                raise Exception
         except Exception:
-            info('failed to reload buffer {}'.format(source_file))
+            warn('failed to load source file {}'.format(source_file))
 
-    info('server is up and running at {} - press any key to stop...'.format(server_url))
-
-    while True:
-        print(server_process.stdout.readline())
+    success('server is up and running at {} - press any key to stop...'.format(server_url))
 
     input('')
 

@@ -19,7 +19,7 @@ class Scalavista(object):
         self.nvim = nvim
         self.initialized = False
         self.qflist = []
-        self.server_url = None
+        self.server_url = 'http://localhost:9317'
 
     def set_server_url(self, port):
         self.server_url = 'http://localhost:{}'.format(port.strip())
@@ -49,14 +49,15 @@ class Scalavista(object):
             if r.status_code != requests.codes.ok:
                 self.error('failed to reload buffer')
         except Exception as e:
-            self.error('failed to reload buffer:')
+            self.error('failed to reload buffer: {}'.format(e))
 
     def update_errors_and_populate_quickfix(self):
         try:
             response = requests.get(self.server_url + '/errors')
             errors = response.json()
         except Exception:
-            self.error('failed to get errors')
+            # self.error('failed to get errors')
+            pass
         else:
             self.nvim.call('clearmatches')
             qflist = []
@@ -148,8 +149,13 @@ class Scalavista(object):
             file = resp.json()['file']
             line = resp.json()['line']
             col = resp.json()['column']
-            self.nvim.command('edit {}'.format(file))
-            self.nvim.call('cursor', line, col)
+            symbol = resp.json()['symbol']
+            if file and file != "<no source file>":
+                self.notify('jumped to definition of {}'.format(symbol))
+                self.nvim.command('edit {}'.format(file))
+                self.nvim.call('cursor', line, col)
+            else:
+                self.notify('unable to find definition of {}'.format(symbol))
         else:
             self.error('goto failed')
 
