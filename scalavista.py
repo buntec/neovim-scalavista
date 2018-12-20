@@ -3,7 +3,6 @@ import glob
 import json
 import os
 import requests
-import subprocess
 import time
 import crayons
 
@@ -49,8 +48,6 @@ def launch():
 
     classpath = conf['classpath'] + ':' + scalavista_jar
     server_process = Popen(['java', '-cp', classpath, 'org.scalavista.AkkaServer'])
-    # server_port = server_process.stdout.readline().decode('utf-8')
-    # server_url = 'http://localhost:{}'.format(server_port).strip()
     server_url = 'http://localhost:9317'
 
     for i in range(10):

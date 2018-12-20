@@ -141,8 +141,8 @@ class Scalavista(object):
         buf = self.nvim.current.buffer
         offset = get_offset_from_cursor(buf[:], cursor)
         content = '\n'.join(buf)
-        file_name = self.nvim.call('expand', '%:p')
-        data = {'filename': file_name, 'fileContents': content,
+        current_file = self.nvim.call('expand', '%:p')
+        data = {'filename': current_file, 'fileContents': content,
                 'offset': offset}
         resp = requests.post(self.server_url + '/ask-pos-at', json=data)
         if resp.status_code == requests.codes.ok:
@@ -152,7 +152,8 @@ class Scalavista(object):
             symbol = resp.json()['symbol']
             if file and file != "<no source file>":
                 self.notify('jumped to definition of {}'.format(symbol))
-                self.nvim.command('edit {}'.format(file))
+                if file != current_file:
+                    self.nvim.command('edit {}'.format(file))
                 self.nvim.call('cursor', line, col)
             else:
                 self.notify('unable to find definition of {}'.format(symbol))
@@ -178,14 +179,6 @@ class Scalavista(object):
     #                                              '\n'.join(buf), offset)
     #     # self.nvim.out_write(members)
 
-    # @neovim.autocmd('CursorHold', pattern='*.scala')
-    # def on_cursor_hold(self):
-    #     self.update_errors_and_populate_quickfix()
-
-    # @neovim.autocmd('CursorHoldI', pattern='*.scala')
-    # def on_cursor_hold_i(self):
-    #     self.update_errors_and_populate_quickfix()
-
     @neovim.autocmd('BufEnter', pattern='*.scala')
     def on_buf_enter(self):
         self.initialize()
@@ -210,8 +203,3 @@ class Scalavista(object):
             if (item['bufnr'] == buf_num) and (item['lnum'] == line_num):
                 messages.append(item['text'])
         self.nvim.out_write(' | '.join(messages) + '\n')
-
-    # @neovim.command('TestCommand', nargs='*', range='')
-    # def testcommand(self, args, range):
-    #     self.nvim.current.line = ('Command with args: {}, range: {}'
-    #                              .format(args, range))
