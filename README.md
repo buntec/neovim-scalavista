@@ -13,4 +13,11 @@ It requires sbt and the sbt-scalavista plugin https://github.com/buntec/sbt-scal
 
 The Neovim plugin is a simple front-end to the scalavista language-server https://github.com/buntec/scalavista, which in turn is a wrapper around Scala's presentation compiler.
 
-This project is in alpha stage and should be considered unstable. 
+To install using [vim-plug](https://github.com/junegunn/vim-plug):
+
+```
+Plug 'buntec/neovim-scalavista', { 'do': './install.sh' }
+
+```
+
+This project is in early alpha stage and should be considered unstable. 
