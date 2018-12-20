@@ -12,3 +12,6 @@ cur_dir=`pwd`
 
 # create symlink to launcher script
 ln -sfv "$cur_dir/scalavista" /usr/local/bin/scalavista
+
+# :UpdateRemotePlugins
+nvim +UpdateRemotePlugins +qa
