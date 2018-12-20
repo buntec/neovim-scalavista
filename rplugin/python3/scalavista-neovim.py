@@ -19,6 +19,7 @@ class Scalavista(object):
         self.nvim = nvim
         self.initialized = False
         self.qflist = []
+        self.errors = ''
         self.server_url = 'http://localhost:9317'
 
     def set_server_url(self, port):
@@ -54,7 +55,10 @@ class Scalavista(object):
     def update_errors_and_populate_quickfix(self):
         try:
             response = requests.get(self.server_url + '/errors')
-            errors = response.json()
+            new_errors = response.json()
+            if (str(new_errors) == str(self.errors)):
+                return
+            self.errors = new_errors
         except Exception:
             # self.error('failed to get errors')
             pass
@@ -62,7 +66,7 @@ class Scalavista(object):
             self.nvim.call('clearmatches')
             qflist = []
             lines = []
-            for error in errors:
+            for error in self.errors:
                 path, lnum, text, severity = error
                 lines.append(int(lnum))
                 qflist.append({'filename': path, 'lnum': int(lnum),
@@ -151,10 +155,13 @@ class Scalavista(object):
             col = resp.json()['column']
             symbol = resp.json()['symbol']
             if file and file != "<no source file>":
-                self.notify('jumped to definition of {}'.format(symbol))
-                if file != current_file:
-                    self.nvim.command('edit {}'.format(file))
-                self.nvim.call('cursor', line, col)
+                try:
+                    if file != current_file:
+                        self.nvim.command('edit {}'.format(file))
+                    self.nvim.call('cursor', line, col)
+                    self.notify('jumped to definition of {}'.format(symbol))
+                except Exception as e:
+                    self.error(e)
             else:
                 self.notify('unable to find definition of {}'.format(symbol))
         else:

@@ -38,7 +38,7 @@ def launch(debug=False):
         warn('missing "scalavista.json" - you can generate it using the scalavista sbt-plugin.')
         scala_binary_version = '2.12'
         classpath = ''
-        sources = glob.glob('*.scala')
+        sources = [os.path.abspath(source_path) for source_path in glob.glob('*.scala')]
 
     base_dir = os.path.dirname(os.path.realpath(__file__))
     jar_wildcard = os.path.join(base_dir, 'jars', r'scalavista-*_{}.jar'.format(scala_binary_version))
