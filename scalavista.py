@@ -26,36 +26,53 @@ def error(msg):
     print('{}#{} {}'.format('scalavista', crayons.red('error'), msg))
 
 
-def launch():
+def launch(debug=False):
 
     try:
         with open('scalavista.json') as f:
             conf = json.load(f)
-    except FileNotFoundError:
-        error('missing "scalavista.json" - please use the sbt-scalavista plugin to generate it.')
-        return
-
-    info('launching server...')
-
-    scala_binary_version = conf['scalaBinaryVersion']
+            scala_binary_version = conf['scalaBinaryVersion']
+            classpath = conf['classpath']
+            sources = conf['sources']
+    except IOError:
+        warn('missing "scalavista.json" - you can generate it using the scalavista sbt-plugin.')
+        scala_binary_version = '2.12'
+        classpath = ''
+        sources = glob.glob('*.scala')
 
     base_dir = os.path.dirname(os.path.realpath(__file__))
-    jar_path = os.path.join(base_dir, 'jars', r'scalavista-*_{}.jar'.format(scala_binary_version))
-    scalavista_jar = glob.glob(jar_path)[0]
+    jar_wildcard = os.path.join(base_dir, 'jars', r'scalavista-*_{}.jar'.format(scala_binary_version))
+
+    if not glob.glob(jar_wildcard):
+        raise RuntimeError('no suitable scalavista jar found - run install.sh to download')
+
+    scalavista_jar = glob.glob(jar_wildcard)[0]
 
     if not os.path.isfile(scalavista_jar):
         raise RuntimeError('jar not found: {}'.format(scalavista_jar))
 
-    classpath = conf['classpath'] + ':' + scalavista_jar
-    server_process = Popen(['java', '-cp', classpath, 'org.scalavista.AkkaServer'])
+    if classpath:
+        classpath += ':' + scalavista_jar
+    else:
+        classpath = scalavista_jar
+
+    info('launching server...')
+
+    if debug:
+        logging_flag = '-d'
+    else:
+        logging_flag = '-q'
+
+    server_process = Popen(['java', '-cp', classpath, 'org.scalavista.AkkaServer', logging_flag])
     server_url = 'http://localhost:9317'
 
-    for i in range(10):
+    max_tries = 10
+    for i in range(max_tries):
         try:
-            info('testing connection...')
+            info('testing connection...({}/{})'.format(i + 1, max_tries))
             req = requests.get(server_url + '/alive')
         except Exception:
-            time.sleep(1)
+            time.sleep(2)
         else:
             if req.status_code == requests.codes.ok:
                 break
@@ -64,7 +81,7 @@ def launch():
         error('failed to start server - quitting...')
         return
 
-    for source_file in conf['sources']:
+    for source_file in sources:
         with open(source_file) as f:
             data = {'filename': source_file, 'fileContents': f.read()}
         try:
