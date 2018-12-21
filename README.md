@@ -3,8 +3,8 @@
 A Neovim plugin that provides basic IDE-like functionality for the Scala language (2.11 and 2.12):
 
 * Show type under cursor (`:ScalavistaType`).
-* Auto-completion (via omni completion - `i_CTRL-X_CTRL-O`).
 * Jump to definition (`:ScalavistaGoto`) - does not currently work for external dependencies.
+* Auto-completion (via omni completion - `i_CTRL-X_CTRL-O`).
 * Linting (gutter signs and quickfix window).
 
 scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims to be minimalistic and lightweight. (In particular, it does not work for Java sources.)
@@ -16,7 +16,7 @@ This Neovim plugin is a front-end to the [scalavista](https://github.com/buntec/
 * Neovim with Python3 support.
 * The `install.sh` script uses `wget` to download the scalavista back-end jars 
 and `pip3` to install the required Python packages.
-* sbt and the [sbt-scalavista plugin](https://github.com/buntec/sbt-scalavista) are highly recommended. 
+* sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin are highly recommended. 
 
 ## Install
 
