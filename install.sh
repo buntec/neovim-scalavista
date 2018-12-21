@@ -13,7 +13,7 @@ cur_dir=`pwd`
 # create symlink to launcher script
 ln -sfv "$cur_dir/scalavista" /usr/local/bin/scalavista
 
-pip3 install neovim --upgrade
+pip3 install pynvim --upgrade
 pip3 install requests --upgrade
 pip3 install crayons --upgrade
 

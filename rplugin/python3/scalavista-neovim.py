@@ -1,5 +1,5 @@
 import requests
-import neovim
+import pynvim
 
 
 def get_offset_from_cursor(buf, cursor):
@@ -12,7 +12,7 @@ def get_offset_from_cursor(buf, cursor):
     return offset
 
 
-@neovim.plugin
+@pynvim.plugin
 class Scalavista(object):
 
     def __init__(self, nvim):
@@ -117,11 +117,11 @@ class Scalavista(object):
         self.error('failed to get type')
         return []
 
-    @neovim.function('ScalavistaUpdateErrors')
+    @pynvim.function('ScalavistaUpdateErrors')
     def update_errors(self, timer):
         self.update_errors_and_populate_quickfix()
 
-    @neovim.function('ScalavistaCompleteFunc', sync=True)
+    @pynvim.function('ScalavistaCompleteFunc', sync=True)
     def scala_complete_func(self, findstart_and_base):
         findstart = findstart_and_base[0]
         base = findstart_and_base[1]
@@ -143,7 +143,7 @@ class Scalavista(object):
             type_completion = self.get_completion('type') + self.get_completion('scope')
             return [comp for comp in type_completion if comp['word'].startswith(base)]
 
-    @neovim.command('ScalavistaType')
+    @pynvim.command('ScalavistaType')
     def get_type(self):
         window = self.nvim.current.window
         cursor = window.cursor
@@ -159,7 +159,7 @@ class Scalavista(object):
         else:
             self.error('failed to get type')
 
-    @neovim.command('ScalavistaGoto')
+    @pynvim.command('ScalavistaGoto')
     def get_pos(self):
         window = self.nvim.current.window
         cursor = window.cursor
@@ -188,16 +188,16 @@ class Scalavista(object):
         else:
             self.error('goto failed')
 
-    @neovim.command('ScalavistaErrors')
+    @pynvim.command('ScalavistaErrors')
     def scala_errors(self):
         self.update_errors_and_populate_quickfix()
 
-    @neovim.command('ScalavistaSetPort', nargs='1')
+    @pynvim.command('ScalavistaSetPort', nargs='1')
     def set_port(self, args):
         self.set_server_url(args[0])
         self.notify(self.server_url)
 
-    # @neovim.command('ScalavistaCompleteScope')
+    # @pynvim.command('ScalavistaCompleteScope')
     # def get_scope_completion(self):
     #     window = self.nvim.current.window
     #     cursor = window.cursor
@@ -207,22 +207,22 @@ class Scalavista(object):
     #                                              '\n'.join(buf), offset)
     #     # self.nvim.out_write(members)
 
-    @neovim.autocmd('BufEnter', pattern='*.scala')
+    @pynvim.autocmd('BufEnter', pattern='*.scala')
     def on_buf_enter(self):
         self.initialize()
         self.reload_current_buffer()
 
-    @neovim.autocmd('TextChanged', pattern='*.scala')
+    @pynvim.autocmd('TextChanged', pattern='*.scala')
     def on_text_changed(self):
         # self.nvim.out_write('text changed triggered')
         self.reload_current_buffer()
 
-    @neovim.autocmd('TextChangedI', pattern='*.scala')
+    @pynvim.autocmd('TextChangedI', pattern='*.scala')
     def on_text_changed_i(self):
         # self.nvim.out_write('text changed i triggered')
         self.reload_current_buffer()
 
-    @neovim.autocmd('CursorMoved', pattern='*.scala')
+    @pynvim.autocmd('CursorMoved', pattern='*.scala')
     def on_cursor_moved(self):
         line_num = self.nvim.current.window.cursor[0]
         buf_num = self.nvim.current.buffer.number
