@@ -2,10 +2,10 @@
 
 A Neovim plugin that provides basic IDE-like functionality for the Scala language (2.11 and 2.12):
 
-* Show type under cursor (:ScalavistaType)
-* Auto-completion (via omni completion)
-* Jump to definition (:ScalavistaGoto) - (does not currently work for external dependencies)
-* Linting (gutter signs and quickfix window)
+* Show type under cursor (:ScalavistaType).
+* Auto-completion (via omni completion - `i_CTRL-X_CTRL-O`).
+* Jump to definition (:ScalavistaGoto) - does not currently work for external dependencies.
+* Linting (gutter signs and quickfix window).
 
 scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims to be minimalistic and lightweight. (In particular, it does not work for Java sources.)
 
