@@ -27,9 +27,16 @@ class Scalavista(object):
 
     def initialize(self):
         if not self.initialized:
-            self.nvim.command('highlight ScalavistaErrorStyle ctermbg=red gui=underline')
+            self.nvim.command('highlight ScalavistaErrorStyle ctermfg=1 ctermbg=0 guifg=#EC5f67 guibg=#1B2B34')
+            self.nvim.command('highlight ScalavistaWarningStyle ctermfg=9 ctermbg=0 guifg=#F99157 guibg=#1B2B34')
             self.nvim.command('set omnifunc=ScalavistaCompleteFunc')
             # self.nvim.command('set completeopt=longest,menuone')
+            self.error_sign = 'ScalavistaErrorSign'
+            self.warning_sign = 'ScalavistaWarningSign'
+            self.info_sign = 'ScalavistaInfoSign'
+            self.nvim.command('sign define {} text=!! texthl=ScalavistaErrorStyle'.format(self.error_sign))
+            self.nvim.command('sign define {} text=! texthl=ScalavistaWarningStyle'.format(self.warning_sign))
+            self.nvim.command('sign define {} text=>'.format(self.info_sign))
             self.nvim.call('timer_start', 1000,
                            'ScalavistaUpdateErrors', {'repeat': -1})
             self.initialized = True
@@ -53,6 +60,9 @@ class Scalavista(object):
             self.error('failed to reload buffer: {}'.format(e))
 
     def update_errors_and_populate_quickfix(self):
+        mode = self.nvim.api.get_mode()['mode']
+        if mode == 'i':
+            return  # don't update errors when in insert mode
         try:
             response = requests.get(self.server_url + '/errors')
             new_errors = response.json()
@@ -64,16 +74,27 @@ class Scalavista(object):
             pass
         else:
             self.nvim.call('clearmatches')
+            self.nvim.command('sign unplace *')
             qflist = []
             lines = []
-            for error in self.errors:
+            for i, error in enumerate(self.errors):
                 path, lnum, text, severity = error
                 lines.append(int(lnum))
                 qflist.append({'filename': path, 'lnum': int(lnum),
                                'text': severity + ':' + text})
+                if severity == 'ERROR':
+                    sign = self.error_sign
+                elif severity == 'WARNING':
+                    sign = self.warning_sign
+                else:
+                    sign = self.info_sign
+                try:
+                    self.nvim.command('sign place {} line={} name={} file={}'.format(i + 1, lnum, sign, path))
+                except Exception:
+                    pass
             self.nvim.call('setqflist', qflist)
             self.nvim.command('let w:quickfix_title="neovim-scala"')
-            self.nvim.call('matchaddpos', 'ScalavistaErrorStyle', lines)
+            # self.nvim.call('matchaddpos', 'ScalavistaErrorStyle', lines)
             self.qflist = self.nvim.call('getqflist')
             # self.nvim.command('cw')
             # self.nvim.command('wincmd p')

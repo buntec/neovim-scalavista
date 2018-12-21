@@ -4,12 +4,8 @@ import argparse
 import scalavista
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--debug", help="switch on debug mode",
-                    action="store_true")
+parser.add_argument('-d', '--debug', help='switch on debug mode',
+                    action='store_true')
 args = parser.parse_args()
 
-debug = False
-if args.debug:
-    debug = True
-
-scalavista.launch(debug)
+scalavista.launch(args.debug)
