@@ -33,9 +33,11 @@ to generate a `scalavista.json` file for your project. This is a simple json fil
 1. `scalaBinaryVersion` (2.11 or 2.12)
 1. `sources` - a list of your existing Scala source files (don't worry, newly creates files will be picked up on-the-fly)
 
-You can use scalavista without a `scalavista.json` but then any external dependencies are 
-not recognized and marked as errors in your code. (This may be perfectly fine if you want to 
-write a small script or self-contained application.) The binary version defaults to 2.12.
+You can use scalavista without a `scalavista.json` with the effect that external dependencies are 
+not recognized and marked as errors in your code. The exception are manually managed dependencies in `./lib` which are
+automatically appended to the classpath. You may want to use the `-r` flag to instruct scalavista to look into all
+subdirectories for Scala source files and not just in the current directory (this has no effect in the presence of a
+`scalavista.json`). The binary version defaults to 2.12.
 
 ## Usage
 
