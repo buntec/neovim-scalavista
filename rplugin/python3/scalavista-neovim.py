@@ -209,6 +209,24 @@ class Scalavista(object):
         else:
             self.error('goto failed')
 
+    @pynvim.command('ScalavistaDoc')
+    def get_doc(self):
+        if not self.server_alive:
+            return
+        window = self.nvim.current.window
+        cursor = window.cursor
+        buf = self.nvim.current.buffer
+        offset = get_offset_from_cursor(buf[:], cursor)
+        content = '\n'.join(buf)
+        current_file = self.nvim.call('expand', '%:p')
+        data = {'filename': current_file, 'fileContents': content,
+                'offset': offset}
+        resp = requests.post(self.server_url + '/ask-doc-at', json=data)
+        if resp.status_code == requests.codes.ok:
+            self.notify(resp.text)
+        else:
+            self.error('failed to find doc')
+
     @pynvim.command('ScalavistaErrors')
     def scala_errors(self):
         self.update_errors_and_populate_quickfix()

@@ -71,7 +71,7 @@ def launch(debug=False, recursive=False):
     else:
         logging_flag = '-q'
 
-    server_process = Popen(['java', '-cp', classpath, 'org.scalavista.AkkaServer', logging_flag])
+    server_process = Popen(['java', '-cp', classpath, 'org.scalavista.ScalavistaServer', logging_flag])
     server_url = 'http://localhost:9317'
 
     max_tries = 10
