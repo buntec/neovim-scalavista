@@ -26,7 +26,7 @@ def error(msg):
     print('{}#{} {}'.format('scalavista', crayons.red('error'), msg))
 
 
-def launch(debug=False):
+def launch(debug=False, recursive=False):
 
     try:
         with open('scalavista.json') as f:
@@ -37,8 +37,16 @@ def launch(debug=False):
     except IOError:
         warn('missing "scalavista.json" - you can generate it using the scalavista sbt-plugin.')
         scala_binary_version = '2.12'
-        classpath = ''
-        sources = [os.path.abspath(source_path) for source_path in glob.glob('*.scala')]
+        lib_jars = glob.glob(os.path.join(os.path.abspath('./lib'), '*.jar'))
+        classpath = ':'.join(lib_jars)
+        if recursive:
+            sources = []
+            for root, _, files in os.walk(os.path.abspath('.')):
+                for file in files:
+                    if file.endswith('.scala'):
+                        sources.append(os.path.join(root, file))
+        else:
+            sources = [os.path.abspath(source_path) for source_path in glob.glob('*.scala')]
 
     base_dir = os.path.dirname(os.path.realpath(__file__))
     jar_wildcard = os.path.join(base_dir, 'jars', r'scalavista-*_{}.jar'.format(scala_binary_version))

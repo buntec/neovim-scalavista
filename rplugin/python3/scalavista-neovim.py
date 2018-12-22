@@ -21,8 +21,9 @@ class Scalavista(object):
         self.qflist = []
         self.errors = ''
         self.server_url = 'http://localhost:9317'
+        self.server_alive = False
 
-    def set_server_url(self, port):
+    def set_server_port(self, port):
         self.server_url = 'http://localhost:{}'.format(port.strip())
 
     def initialize(self):
@@ -38,8 +39,9 @@ class Scalavista(object):
             self.nvim.command('sign define {} text=! texthl=ScalavistaWarningStyle'.format(self.warning_sign))
             self.nvim.command('sign define {} text=>'.format(self.info_sign))
             self.nvim.call('timer_start', 1000,
-                           'ScalavistaUpdateErrors', {'repeat': -1})
+                           'ScalavistaRefresh', {'repeat': -1})
             self.initialized = True
+            self.check_health()
 
     def notify(self, msg):
         self.nvim.out_write('scalavista> {}\n'.format(msg))
@@ -47,7 +49,17 @@ class Scalavista(object):
     def error(self, msg):
         self.nvim.out_write('scalavista> {}\n'.format(msg))
 
+    def check_health(self):
+        try:
+            req = requests.get(self.server_url + '/alive')
+            if req.status_code == requests.codes.ok:
+                self.server_alive = True
+        except Exception:
+            self.server_alive = False
+
     def reload_current_buffer(self):
+        if not self.server_alive:
+            return
         buf = self.nvim.current.buffer
         content = '\n'.join(buf)
         file_name = self.nvim.call('expand', '%:p')
@@ -60,6 +72,8 @@ class Scalavista(object):
             self.error('failed to reload buffer: {}'.format(e))
 
     def update_errors_and_populate_quickfix(self):
+        if not self.server_alive:
+            return
         mode = self.nvim.api.get_mode()['mode']
         if mode == 'i':
             return  # don't update errors when in insert mode
@@ -100,6 +114,8 @@ class Scalavista(object):
             # self.nvim.command('wincmd p')
 
     def get_completion(self, completion='type'):
+        if not self.server_alive:
+            return []
         window = self.nvim.current.window
         cursor = window.cursor
         buf = self.nvim.current.buffer
@@ -117,8 +133,9 @@ class Scalavista(object):
         self.error('failed to get type')
         return []
 
-    @pynvim.function('ScalavistaUpdateErrors')
+    @pynvim.function('ScalavistaRefresh')
     def update_errors(self, timer):
+        self.check_health()
         self.update_errors_and_populate_quickfix()
 
     @pynvim.function('ScalavistaCompleteFunc', sync=True)
@@ -145,6 +162,8 @@ class Scalavista(object):
 
     @pynvim.command('ScalavistaType')
     def get_type(self):
+        if not self.server_alive:
+            return
         window = self.nvim.current.window
         cursor = window.cursor
         buf = self.nvim.current.buffer
@@ -161,6 +180,8 @@ class Scalavista(object):
 
     @pynvim.command('ScalavistaGoto')
     def get_pos(self):
+        if not self.server_alive:
+            return
         window = self.nvim.current.window
         cursor = window.cursor
         buf = self.nvim.current.buffer
@@ -194,18 +215,16 @@ class Scalavista(object):
 
     @pynvim.command('ScalavistaSetPort', nargs='1')
     def set_port(self, args):
-        self.set_server_url(args[0])
-        self.notify(self.server_url)
+        self.set_server_port(args[0])
+        self.check_health()
 
-    # @pynvim.command('ScalavistaCompleteScope')
-    # def get_scope_completion(self):
-    #     window = self.nvim.current.window
-    #     cursor = window.cursor
-    #     buf = self.nvim.current.buffer
-    #     offset = get_offset_from_cursor(buf[:], cursor)
-    #     members = self.engine.askScopeCompletion('current_buffer',
-    #                                              '\n'.join(buf), offset)
-    #     # self.nvim.out_write(members)
+    @pynvim.command('ScalavistaHealth')
+    def scalavista_healthcheck(self):
+        self.check_health()
+        if self.server_alive:
+            self.notify('scalavista server at {} is alive!'.format(self.server_url))
+        else:
+            self.error('unable to connect to scalavista server at {}'.format(self.server_url))
 
     @pynvim.autocmd('BufEnter', pattern='*.scala')
     def on_buf_enter(self):
@@ -214,12 +233,10 @@ class Scalavista(object):
 
     @pynvim.autocmd('TextChanged', pattern='*.scala')
     def on_text_changed(self):
-        # self.nvim.out_write('text changed triggered')
         self.reload_current_buffer()
 
     @pynvim.autocmd('TextChangedI', pattern='*.scala')
     def on_text_changed_i(self):
-        # self.nvim.out_write('text changed i triggered')
         self.reload_current_buffer()
 
     @pynvim.autocmd('CursorMoved', pattern='*.scala')
