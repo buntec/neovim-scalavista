@@ -23,7 +23,7 @@ def error(msg):
     print('{}#{} {}'.format('scalavista', crayons.red('error'), msg))
 
 
-def launch(port, scalac_opts=None, debug=False, recursive=False):
+def launch(port, scalac_opts='', debug=False, recursive=False):
 
     try:
         with open('scalavista.json') as f:
@@ -31,7 +31,7 @@ def launch(port, scalac_opts=None, debug=False, recursive=False):
             scala_binary_version = conf['scalaBinaryVersion']
             classpath = conf['classpath']
             sources = conf['sources']
-            if scalac_opts is None:
+            if not scalac_opts:
                 scalac_opts = ' '.join(conf['scalacOptions'])
     except IOError:
         warn('missing "scalavista.json" - you can generate it using the scalavista sbt-plugin.')
@@ -65,11 +65,10 @@ def launch(port, scalac_opts=None, debug=False, recursive=False):
 
     call = ['java', '-cp', classpath, 'org.scalavista.ScalavistaServer', '--port', str(port)]
 
+    call.extend(['--scalacopts', '"{}"'.format(scalac_opts)])
+
     if debug:
         call.append('--debug')
-
-    if scalac_opts:
-       call.extend(['--scalacopts', '"{}"'.format(scalac_opts)])
 
     info('launching server...')
     server_process = Popen(call)

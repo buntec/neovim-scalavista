@@ -35,6 +35,6 @@ if args.pedantic:
 elif args.scalacopts:
     scalac_opts = ' '.join(args.scalacopts)
 else:
-    scalac_opts = None
+    scalac_opts = ''
 
 scalavista.launch(args.port, scalac_opts, args.debug, args.recursive)
