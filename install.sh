@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-jar11_url="https://github.com/buntec/scalavista/releases/download/v0.1.1/scalavista-0.1.1_2.11.jar"
-jar12_url="https://github.com/buntec/scalavista/releases/download/v0.1.1/scalavista-0.1.1_2.12.jar"
+jar11_url="https://github.com/buntec/scalavista/releases/download/v0.1.2/scalavista-0.1.2_2.11.jar"
+jar12_url="https://github.com/buntec/scalavista/releases/download/v0.1.2/scalavista-0.1.2_2.12.jar"
 
 # download scalavista jars if necessary
 wget $jar11_url -nc -P jars
