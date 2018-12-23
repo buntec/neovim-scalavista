@@ -7,9 +7,6 @@ import time
 import crayons
 
 
-PROMPT = 'scalavista>'
-
-
 def info(msg):
     print('{}#{} {}'.format('scalavista', crayons.magenta('info'), msg))
 
@@ -26,7 +23,7 @@ def error(msg):
     print('{}#{} {}'.format('scalavista', crayons.red('error'), msg))
 
 
-def launch(debug=False, recursive=False):
+def launch(port, scalac_opts=None, debug=False, recursive=False):
 
     try:
         with open('scalavista.json') as f:
@@ -34,6 +31,8 @@ def launch(debug=False, recursive=False):
             scala_binary_version = conf['scalaBinaryVersion']
             classpath = conf['classpath']
             sources = conf['sources']
+            if scalac_opts is None:
+                scalac_opts = ' '.join(conf['scalacOptions'])
     except IOError:
         warn('missing "scalavista.json" - you can generate it using the scalavista sbt-plugin.')
         scala_binary_version = '2.12'
@@ -64,15 +63,17 @@ def launch(debug=False, recursive=False):
     else:
         classpath = scalavista_jar
 
-    info('launching server...')
+    call = ['java', '-cp', classpath, 'org.scalavista.ScalavistaServer', '--port', str(port)]
 
     if debug:
-        logging_flag = '-d'
-    else:
-        logging_flag = '-q'
+        call.append('--debug')
 
-    server_process = Popen(['java', '-cp', classpath, 'org.scalavista.ScalavistaServer', logging_flag])
-    server_url = 'http://localhost:9317'
+    if scalac_opts:
+       call.extend(['--scalacopts', '"{}"'.format(scalac_opts)])
+
+    info('launching server...')
+    server_process = Popen(call)
+    server_url = 'http://localhost:{}'.format(port)
 
     max_tries = 10
     for i in range(max_tries):
@@ -104,7 +105,3 @@ def launch(debug=False, recursive=False):
     input('')
 
     server_process.terminate()
-
-
-if __name__ == '__main__':
-    launch()

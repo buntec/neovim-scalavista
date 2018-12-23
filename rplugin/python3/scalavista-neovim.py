@@ -2,6 +2,9 @@ import requests
 import pynvim
 
 
+DEFAULT_PORT = 9317
+
+
 def get_offset_from_cursor(buf, cursor):
     line = cursor[0]
     col = cursor[1]
@@ -20,7 +23,7 @@ class Scalavista(object):
         self.initialized = False
         self.qflist = []
         self.errors = ''
-        self.server_url = 'http://localhost:9317'
+        self.server_url = 'http://localhost:{}'.format(DEFAULT_PORT)
         self.server_alive = False
 
     def set_server_port(self, port):
