@@ -93,22 +93,31 @@ class Scalavista(object):
             self.nvim.call('clearmatches')
             self.nvim.command('sign unplace *')
             qflist = []
-            lines = []
+            infos = []
+            warnings = []
+            errors = []
+            # lines = []
             for i, error in enumerate(self.errors):
                 path, lnum, text, severity = error
-                lines.append(int(lnum))
+                # lines.append(int(lnum))
                 qflist.append({'filename': path, 'lnum': int(lnum),
                                'text': severity + ':' + text})
                 if severity == 'ERROR':
-                    sign = self.error_sign
+                    errors.append((lnum, path))
                 elif severity == 'WARNING':
-                    sign = self.warning_sign
+                    warnings.append((lnum, path))
                 else:
-                    sign = self.info_sign
-                try:
-                    self.nvim.command('sign place {} line={} name={} file={}'.format(i + 1, lnum, sign, path))
-                except Exception:
-                    pass
+                    infos.append((lnum, path))
+
+            sign_idx = 1
+            for msgs, sign in [(infos, self.info_sign), (warnings, self.warning_sign), (errors, self.error_sign)]:
+                for lnum, path in msgs:
+                    try:
+                        self.nvim.command('sign place {} line={} name={} file={}'.format(sign_idx, lnum, sign, path))
+                    except Exception:
+                        pass
+                    sign_idx += 1
+
             self.nvim.call('setqflist', qflist)
             self.nvim.command('let w:quickfix_title="neovim-scala"')
             # self.nvim.call('matchaddpos', 'ScalavistaErrorStyle', lines)
