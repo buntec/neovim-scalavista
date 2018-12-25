@@ -41,7 +41,7 @@ class Scalavista(object):
             self.nvim.command('sign define {} text=!! texthl=ScalavistaErrorStyle'.format(self.error_sign))
             self.nvim.command('sign define {} text=! texthl=ScalavistaWarningStyle'.format(self.warning_sign))
             self.nvim.command('sign define {} text=>'.format(self.info_sign))
-            self.nvim.call('timer_start', 1000,
+            self.nvim.call('timer_start', 500,
                            'ScalavistaRefresh', {'repeat': -1})
             self.initialized = True
             self.check_health()
@@ -60,13 +60,22 @@ class Scalavista(object):
         except Exception:
             self.server_alive = False
 
+    def find_buffer_from_absfilepath(self, absfilepath):
+        buffers = self.nvim.buffers
+        for buffer in buffers:
+            if absfilepath.endswith(buffer.name):
+                return buffer
+        raise RuntimeError('failed to find buffer containing {}'.format(absfilepath))
+
     def reload_current_buffer(self):
         if not self.server_alive:
             return
-        buf = self.nvim.current.buffer
+        absfilepath = self.nvim.call('expand', '%:p')
+        if not absfilepath.endswith('.scala'):
+            return  # only want to load scala source files.
+        buf = self.find_buffer_from_absfilepath(absfilepath)  # self.nvim.current.buffer
         content = '\n'.join(buf)
-        file_name = self.nvim.call('expand', '%:p')
-        data = {'filename': file_name, 'fileContents': content}
+        data = {'filename': absfilepath, 'fileContents': content}
         try:
             r = requests.post(self.server_url + '/reload-file', json=data)
             if r.status_code != requests.codes.ok:
@@ -148,6 +157,7 @@ class Scalavista(object):
     @pynvim.function('ScalavistaRefresh')
     def update_errors(self, timer):
         self.check_health()
+        self.reload_current_buffer()
         self.update_errors_and_populate_quickfix()
 
     @pynvim.function('ScalavistaCompleteFunc', sync=True)
@@ -213,11 +223,11 @@ class Scalavista(object):
                     if file != current_file:
                         self.nvim.command('edit {}'.format(file))
                     self.nvim.call('cursor', line, col)
-                    self.notify('jumped to definition of {}'.format(symbol))
+                    # self.notify('jumped to definition of {}'.format(symbol))
                 except Exception as e:
                     self.error(e)
             else:
-                self.notify('unable to find definition of {}'.format(symbol))
+                self.error('unable to find definition of {}'.format(symbol))
         else:
             self.error('goto failed')
 
@@ -256,18 +266,22 @@ class Scalavista(object):
         else:
             self.error('unable to connect to scalavista server at {}'.format(self.server_url))
 
-    @pynvim.autocmd('BufEnter', pattern='*.scala')
-    def on_buf_enter(self):
+    @pynvim.autocmd('BufEnter', pattern='*.scala', eval='expand("<afile>")', sync=True)
+    def on_buf_enter(self, filename):
         self.initialize()
         self.reload_current_buffer()
 
-    @pynvim.autocmd('TextChanged', pattern='*.scala')
-    def on_text_changed(self):
+    @pynvim.autocmd('BufLeave', pattern='*.scala', eval='expand("<afile>")', sync=True)
+    def on_buf_leave(self, filename):
         self.reload_current_buffer()
 
-    @pynvim.autocmd('TextChangedI', pattern='*.scala')
-    def on_text_changed_i(self):
-        self.reload_current_buffer()
+    # @pynvim.autocmd('TextChanged', pattern='*.scala')
+    # def on_text_changed(self):
+    #     self.reload_current_buffer()
+
+    # @pynvim.autocmd('TextChangedI', pattern='*.scala')
+    # def on_text_changed_i(self):
+    #     self.reload_current_buffer()
 
     @pynvim.autocmd('CursorMoved', pattern='*.scala')
     def on_cursor_moved(self):
