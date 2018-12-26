@@ -22,6 +22,8 @@ PEDANTIC_SCALACOPTIONS = ('-deprecation '
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--debug', help='switch on debug mode',
                     action='store_true')
+parser.add_argument('-t', '--trace', help='switch on trace mode',
+                    action='store_true')
 parser.add_argument('-r', '--recursive', help='look for Scala source files in all subdirectories - applies only in the absence of a scalavista.json file',
                     action='store_true')
 parser.add_argument('--scalacopts', nargs='*', help='Scala compiler options')
@@ -37,4 +39,4 @@ elif args.scalacopts:
 else:
     scalac_opts = ''
 
-scalavista.launch(args.port, scalac_opts, args.debug, args.recursive)
+scalavista.launch(args.port, scalac_opts, args.debug, args.trace, args.recursive)

@@ -107,7 +107,7 @@ class Scalavista(object):
             errors = []
             # lines = []
             for i, error in enumerate(self.errors):
-                path, lnum, text, severity = error
+                path, lnum, point, start, end, text, severity = error
                 # lines.append(int(lnum))
                 qflist.append({'filename': path, 'lnum': int(lnum),
                                'text': severity + ':' + text})
@@ -134,7 +134,7 @@ class Scalavista(object):
             # self.nvim.command('cw')
             # self.nvim.command('wincmd p')
 
-    def get_completion(self, completion='type'):
+    def get_completion(self, completion_type='type'):
         if not self.server_alive:
             return []
         window = self.nvim.current.window
@@ -145,19 +145,19 @@ class Scalavista(object):
         file_name = self.nvim.call('expand', '%:p')
         data = {'filename': file_name, 'fileContents': content,
                 'offset': offset}
-        resp = requests.post(self.server_url + '/{}-completion'.format(completion), json=data)
+        resp = requests.post(self.server_url + '/{}-completion'.format(completion_type), json=data)
         if resp.status_code == requests.codes.ok:
             res = []
             for word, menu in resp.json():
                 res.append({'word': word, 'menu': menu, 'dup': 1})
             return res
-        self.error('failed to get type')
+        self.error('failed to get {} completion'.format(completion_type))
         return []
 
     @pynvim.function('ScalavistaRefresh')
     def update_errors(self, timer):
         self.check_health()
-        self.reload_current_buffer()
+        # self.reload_current_buffer()
         self.update_errors_and_populate_quickfix()
 
     @pynvim.function('ScalavistaCompleteFunc', sync=True)
@@ -275,13 +275,13 @@ class Scalavista(object):
     def on_buf_leave(self, filename):
         self.reload_current_buffer()
 
-    # @pynvim.autocmd('TextChanged', pattern='*.scala')
-    # def on_text_changed(self):
-    #     self.reload_current_buffer()
+    @pynvim.autocmd('TextChanged', pattern='*.scala')
+    def on_text_changed(self):
+        self.reload_current_buffer()
 
-    # @pynvim.autocmd('TextChangedI', pattern='*.scala')
-    # def on_text_changed_i(self):
-    #     self.reload_current_buffer()
+    @pynvim.autocmd('TextChangedI', pattern='*.scala')
+    def on_text_changed_i(self):
+        self.reload_current_buffer()
 
     @pynvim.autocmd('CursorMoved', pattern='*.scala')
     def on_cursor_moved(self):

@@ -23,7 +23,7 @@ def error(msg):
     print('{}#{} {}'.format('scalavista', crayons.red('error'), msg))
 
 
-def launch(port, scalac_opts='', debug=False, recursive=False):
+def launch(port, scalac_opts='', debug=False, trace=False, recursive=False):
 
     try:
         with open('scalavista.json') as f:
@@ -69,6 +69,9 @@ def launch(port, scalac_opts='', debug=False, recursive=False):
 
     if debug:
         call.append('--debug')
+
+    if trace:
+        call.append('--trace')
 
     info('launching server...')
     server_process = Popen(call)
