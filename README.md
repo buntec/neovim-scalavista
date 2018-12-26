@@ -12,14 +12,13 @@ no manual compilation is needed)
 scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims 
 to be minimalistic and lightweight. (In particular, it does not work for Java sources.)
 
-The Neovim plugin is a front-end to the [scalavista](https://github.com/buntec/scalavista) language-server, 
+The Neovim plugin is a front-end to the [scalavista-server](https://github.com/buntec/scalavista-server) language-server, 
 which in turn is a thin wrapper around Scala's presentation compiler.
 
 ## Prerequisites
 
-* Neovim with Python3 support.
-* The `install.sh` script uses `wget` to download the scalavista back-end jars 
-and `pip3` to install the required Python packages.
+* Neovim with Python3 support and the `pynvim` package installed (`pip3 install pynvim`).
+* [scalavista-server](https://github.com/buntec/scalavista-server).
 * sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin are recommended. 
 
 ## Install
@@ -27,15 +26,20 @@ and `pip3` to install the required Python packages.
 Using [vim-plug](https://github.com/junegunn/vim-plug):
 
 ```
-Plug 'buntec/neovim-scalavista', { 'do': './install.sh' }
+Plug 'buntec/neovim-scalavista', { 'do': ':UpdateRemotePlugins' }
 ```
+
+If you haven't already done so, clone [scalavista-server](https://github.com/buntec/scalavista-server) and run the install script.
+
 
 ## Usage
 
-The install script symlinks the `scalavista` python3 script into `/usr/local/bin`. 
-Execute it from the root of your project, ideally with a `scalavista.json` present. 
-A scalavista server will be launched and Neovim will connect to it upon opening any Scala
-source file in a buffer.
+Start a scalavista-server instance by executing `scalavista` from the root of your project, 
+ideally with a `scalavista.json` present. 
+Neovim will connect to it upon opening any Scala source file in a buffer. 
+
+If you want to work on multiple separate projects at the same time, 
+you can use the `--port` option to run one server per project. 
 
 For an optimal experience use the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin 
 to generate a `scalavista.json` file for your project. This is a simple json file with the following fields:
