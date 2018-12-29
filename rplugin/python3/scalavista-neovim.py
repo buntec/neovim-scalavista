@@ -31,6 +31,7 @@ class Scalavista(object):
 
     def initialize(self):
         if not self.initialized:
+            self.nvim.command('highlight link ScalavistaUnderlineStyle SpellBad')
             self.nvim.command('highlight ScalavistaErrorStyle ctermfg=1 ctermbg=0 guifg=#EC5f67 guibg=#1B2B34')
             self.nvim.command('highlight ScalavistaWarningStyle ctermfg=9 ctermbg=0 guifg=#F99157 guibg=#1B2B34')
             self.nvim.command('set omnifunc=ScalavistaCompleteFunc')
@@ -105,10 +106,11 @@ class Scalavista(object):
             infos = []
             warnings = []
             errors = []
-            # lines = []
+            lines = []
             for i, error in enumerate(self.errors):
-                path, lnum, point, start, end, text, severity = error
-                # lines.append(int(lnum))
+                path, lnum, col, start, end, text, severity = error
+                n_bytes = (int(end) - int(start)) // 2
+                lines.append([int(lnum), int(col), n_bytes + 1])
                 qflist.append({'filename': path, 'lnum': int(lnum),
                                'text': severity + ':' + text})
                 if severity == 'ERROR':
@@ -129,7 +131,7 @@ class Scalavista(object):
 
             self.nvim.call('setqflist', qflist)
             self.nvim.command('let w:quickfix_title="neovim-scala"')
-            # self.nvim.call('matchaddpos', 'ScalavistaErrorStyle', lines)
+            self.nvim.call('matchaddpos', 'ScalavistaUnderlineStyle', lines)
             self.qflist = self.nvim.call('getqflist')
             # self.nvim.command('cw')
             # self.nvim.command('wincmd p')
