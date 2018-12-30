@@ -247,9 +247,23 @@ class Scalavista(object):
                 'offset': offset}
         resp = requests.post(self.server_url + '/ask-doc-at', json=data)
         if resp.status_code == requests.codes.ok:
-            self.notify(resp.text)
+            doc_string = resp.text
+            if not doc_string:
+                self.error("no scaladoc found")
+                return
+            # current_buffer_name = self.nvim.call('bufname', '%')
+            self.nvim.command('let help = "{}"'.format(doc_string))
+            self.nvim.command('botright 12 new')
+            self.nvim.command('edit {}'.format('scalavista-scaladoc'))
+            self.nvim.command('setlocal bufhidden=wipe')
+            self.nvim.command('setlocal nobuflisted')
+            self.nvim.command('setlocal buftype=nofile')
+            self.nvim.command('setlocal noswapfile')
+            self.nvim.command('setlocal nospell')
+            self.nvim.command('0 put =help')
+            # self.nvim.command('buffer {}'.format(current_buffer_name))
         else:
-            self.error('failed to find doc')
+            self.error('failed to retrieve scaladoc')
 
     @pynvim.command('ScalavistaErrors')
     def scala_errors(self):
