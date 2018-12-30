@@ -1,5 +1,7 @@
 # neovim-scalavista
 
+![](demo.gif)
+
 A Neovim plugin that provides basic IDE-like functionality for the Scala language (2.11 and 2.12):
 
 * Show type under cursor (`:ScalavistaType`).
