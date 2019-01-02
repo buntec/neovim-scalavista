@@ -10,7 +10,7 @@ A Neovim plugin that provides basic IDE-like functionality for the Scala languag
 * Auto-completion (via omni completion - `i_CTRL-X_CTRL-O`);
 * Linting (compiler errors/warnings show up as you type).
 
-scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims 
+Scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims 
 to be minimalistic and lightweight. (In particular, it does not work for Java sources.)
 
 The Neovim plugin is a front-end to the [scalavista-server](https://github.com/buntec/scalavista-server) language-server, 
