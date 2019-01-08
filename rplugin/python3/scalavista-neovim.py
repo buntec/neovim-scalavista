@@ -72,8 +72,8 @@ class Scalavista(object):
         if not self.server_alive:
             return
         absfilepath = self.nvim.call('expand', '%:p')
-        if not absfilepath.endswith('.scala'):
-            return  # only want to load scala source files.
+        # if not absfilepath.endswith('.scala'):
+        #     return  # only want to load scala source files.
         buf = self.find_buffer_from_absfilepath(absfilepath)  # self.nvim.current.buffer
         content = '\n'.join(buf)
         data = {'filename': absfilepath, 'fileContents': content}
@@ -159,7 +159,6 @@ class Scalavista(object):
     @pynvim.function('ScalavistaRefresh')
     def update_errors(self, timer):
         self.check_health()
-        # self.reload_current_buffer()
         self.update_errors_and_populate_quickfix()
 
     @pynvim.function('ScalavistaCompleteFunc', sync=True)
@@ -222,7 +221,7 @@ class Scalavista(object):
             symbol = resp.json()['symbol']
             if file and file != "<no source file>":
                 try:
-                    if file != current_file:
+                    if (file != current_file) and (file != '<no file>'):
                         self.nvim.command('edit {}'.format(file))
                     self.nvim.call('cursor', line, col)
                     # self.notify('jumped to definition of {}'.format(symbol))
@@ -282,24 +281,24 @@ class Scalavista(object):
         else:
             self.error('unable to connect to scalavista server at {}'.format(self.server_url))
 
-    @pynvim.autocmd('BufEnter', pattern='*.scala', eval='expand("<afile>")', sync=True)
+    @pynvim.autocmd('BufEnter', pattern='*.scala,*.java', eval='expand("<afile>")', sync=True)
     def on_buf_enter(self, filename):
         self.initialize()
         self.reload_current_buffer()
 
-    @pynvim.autocmd('BufLeave', pattern='*.scala', eval='expand("<afile>")', sync=True)
+    @pynvim.autocmd('BufLeave', pattern='*.scala,*.java', eval='expand("<afile>")', sync=True)
     def on_buf_leave(self, filename):
         self.reload_current_buffer()
 
-    @pynvim.autocmd('TextChanged', pattern='*.scala')
+    @pynvim.autocmd('TextChanged', pattern='*.scala,*.java')
     def on_text_changed(self):
         self.reload_current_buffer()
 
-    @pynvim.autocmd('TextChangedI', pattern='*.scala')
+    @pynvim.autocmd('TextChangedI', pattern='*.scala,*.java')
     def on_text_changed_i(self):
         self.reload_current_buffer()
 
-    @pynvim.autocmd('CursorMoved', pattern='*.scala')
+    @pynvim.autocmd('CursorMoved', pattern='*.scala,*.java')
     def on_cursor_moved(self):
         line_num = self.nvim.current.window.cursor[0]
         buf_num = self.nvim.current.buffer.number
