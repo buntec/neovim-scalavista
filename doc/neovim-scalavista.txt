@@ -40,7 +40,8 @@ COMMANDS                                    *neovim-scalavista-commands*
                                 automatically once per second if not in 
                                 insert mode.
 
-:ScalavistaHealth               Test connection to the scalavista server.
+:ScalavistaHealth               Test connection to the scalavista server
+                                and check its version.
 
 :ScalavistaSetPort [port]       Only needed if the scalavista server is 
                                 not listening on the default port (9317).

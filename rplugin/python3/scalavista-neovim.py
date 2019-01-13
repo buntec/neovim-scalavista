@@ -15,6 +15,19 @@ def get_offset_from_cursor(buf, cursor):
     return offset
 
 
+# return true if v1 <= v2
+def compare_versions(v1, v2):
+    major1, minor1, patch1 = [int(i) for i in v1.split('.')]
+    major2, minor2, patch2 = [int(i) for i in v2.split('.')]
+    if major1 > major2:
+        return False
+    if (major1 == major2) and (minor1 > minor2):
+        return False
+    if (major1 == major2) and (minor1 == minor2) and (patch1 > patch2):
+        return False
+    return True
+
+
 @pynvim.plugin
 class Scalavista(object):
 
@@ -28,6 +41,10 @@ class Scalavista(object):
 
     def set_server_port(self, port):
         self.server_url = 'http://localhost:{}'.format(port.strip())
+
+    def get_latest_server_version(self):
+        releases = requests.get('https://api.github.com/repos/buntec/scalavista-server/releases').json()
+        return releases[0]['tag_name'][1:]
 
     def initialize(self):
         if not self.initialized:
@@ -60,6 +77,14 @@ class Scalavista(object):
                 self.server_alive = True
         except Exception:
             self.server_alive = False
+
+    def server_version_is_outdated(self):
+        try:
+            latest_version = self.get_latest_server_version()
+            response = requests.get(self.server_url + '/version')
+            return (response.status_code != requests.codes.ok) or not compare_versions(latest_version, response.text)
+        except Exception:
+            return False
 
     def find_buffer_from_absfilepath(self, absfilepath):
         buffers = self.nvim.buffers
@@ -130,7 +155,7 @@ class Scalavista(object):
                     sign_idx += 1
 
             self.nvim.call('setqflist', qflist)
-            self.nvim.command('let w:quickfix_title="neovim-scala"')
+            self.nvim.command('let w:quickfix_title="neovim-scalavista"')
             self.nvim.call('matchaddpos', 'ScalavistaUnderlineStyle', lines)
             self.qflist = self.nvim.call('getqflist')
             # self.nvim.command('cw')
@@ -277,9 +302,11 @@ class Scalavista(object):
     def scalavista_healthcheck(self):
         self.check_health()
         if self.server_alive:
-            self.notify('scalavista server at {} is alive!'.format(self.server_url))
+            self.notify('scalavista server at {} is alive'.format(self.server_url))
         else:
             self.error('unable to connect to scalavista server at {}'.format(self.server_url))
+        if self.server_version_is_outdated():
+            self.notify('your scalavista server version is outdated - please update')
 
     @pynvim.autocmd('BufEnter', pattern='*.scala,*.java', eval='expand("<afile>")', sync=True)
     def on_buf_enter(self, filename):
