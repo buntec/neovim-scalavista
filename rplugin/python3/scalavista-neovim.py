@@ -1,14 +1,16 @@
 import json
 import os
 import re
+import random
 import fnmatch
 import uuid
 import requests
 import pynvim
+from packaging.version import Version
 
 
-DEFAULT_PORT = 9317
-MAX_SERVER_LAUNCH_ATTEMPTS = 10
+MIN_PORT = 49152
+MAX_PORT = 65535
 
 
 def get_offset_from_cursor(buf, cursor):
@@ -21,19 +23,6 @@ def get_offset_from_cursor(buf, cursor):
     return offset
 
 
-# return true if v1 <= v2
-def compare_versions(v1, v2):
-    major1, minor1, patch1 = [int(i) for i in v1.split(".")]
-    major2, minor2, patch2 = [int(i) for i in v2.split(".")]
-    if major1 > major2:
-        return False
-    if (major1 == major2) and (minor1 > minor2):
-        return False
-    if (major1 == major2) and (minor1 == minor2) and (patch1 > patch2):
-        return False
-    return True
-
-
 # used to download server jars
 def download_file(url, file_name):
     with open(file_name, "wb") as file:
@@ -41,23 +30,32 @@ def download_file(url, file_name):
         file.write(response.content)
 
 
-class Version:
-    def __init__(self, version_string):
-        self.major, self.minor, self.patch = [int(i) for i in version_string.split(".")]
-        self.from_string = version_string
+def is_valid_server_jar(jar):
+    scalavista_version_pattern = re.compile(r"\d+\.\d+\.\d+")
+    scala_version_pattern = re.compile(r"_\d\.\d{1,2}\.jar")
+    overall_pattern = re.compile(r"scalavista-server-.*\.jar")
+    return (
+        scala_version_pattern.search(jar) is not None
+        and scalavista_version_pattern.search(jar) is not None
+        and overall_pattern.search(jar) is not None
+    )
 
-    def __lt__(self, other):
-        if self.major > other.major:
-            return False
-        if (self.major == other.major) and (self.minor > other.minor):
-            return False
-        if (
-            (self.major == other.major)
-            and (self.minor == other.minor)
-            and (self.patch >= other.patch)
-        ):
-            return False
-        return True
+
+def get_scala_version_from_server_jar(jar):
+    scala_version_pattern = re.compile(r"_(\d\.\d{1,2})\.jar")
+    return scala_version_pattern.search(jar)[1]
+
+
+def get_scalavista_version_from_server_jar(jar):
+    scalavista_version_pattern = re.compile(r"\d+\.\d+\.\d+")
+    return scalavista_version_pattern.search(jar)[0]
+
+
+def get_latest_server_version(self):
+    releases = requests.get(
+        "https://api.github.com/repos/buntec/scalavista-server/releases"
+    ).json()
+    return releases[0]["tag_name"][1:]
 
 
 @pynvim.plugin
@@ -67,26 +65,26 @@ class Scalavista(object):
         self.initialized = False
         self.qflist = []
         self.errors = ""
-        self.server_port = DEFAULT_PORT
+        self.server_port = random.randint(MIN_PORT, MAX_PORT)
         self.server_alive = False
-        self.server_launch_attempts = 0
+        self.try_to_start_server = False
         self.uuid = uuid.uuid4().hex
+        self.scalavista_server_jars = {}
+
+    def get_plugin_path(self):
+        runtime_paths = self.nvim.list_runtime_paths()
+        for path in runtime_paths:
+            if path.find("neovim-scalavista") > -1:
+                return path
+        raise RuntimeError("neovim-scalavista runtime path not found")
 
     def server_url(self):
         return "http://localhost:{}".format(self.server_port)
 
-    def set_server_port(self, port):
-        self.server_port = int(port)
-
-    def get_latest_server_version(self):
-        releases = requests.get(
-            "https://api.github.com/repos/buntec/scalavista-server/releases"
-        ).json()
-        return releases[0]["tag_name"][1:]
-
     @pynvim.command("ScalavistaLocateServerJars")
     def print_server_jars(self):
-        self.notify(self.locate_server_jars())
+        self.locate_server_jars()
+        self.notify(self.scalavista_server_jars)
 
     def locate_server_jars(self):
         runtime_paths = self.nvim.list_runtime_paths()
@@ -94,36 +92,31 @@ class Scalavista(object):
         for path in ["."] + runtime_paths:
             if os.path.isdir(path):
                 for file in os.listdir(path):
-                    if fnmatch.fnmatch(file, "scalavista-server-*.jar"):
+                    if is_valid_server_jar(file):
                         server_jars.append(os.path.join(path, file))
         server_jars_by_version = {}
         for jar in server_jars:
-            version_match = re.search(r"\d+\.\d+\.\d+", jar)
-            if version_match is not None:
-                version = version_match[0]
-                if version not in server_jars_by_version:
-                    server_jars_by_version[version] = [jar]
-                else:
-                    server_jars_by_version[version].append(jar)
+            version = get_scalavista_version_from_server_jar(jar)
+            if version not in server_jars_by_version:
+                server_jars_by_version[version] = [jar]
+            else:
+                server_jars_by_version[version].append(jar)
         if not server_jars_by_version:
             return {}
-        versions = [Version(v) for v in server_jars_by_version.keys()]
-        versions.sort()
-        latest_version = versions[-1]
-        latest_server_jars = server_jars_by_version[latest_version.from_string]
+        all_versions = [Version(v) for v in server_jars_by_version.keys()]
+        all_versions.sort()
+        latest_version = all_versions[-1]
+        latest_server_jars = server_jars_by_version[latest_version.public]
         server_jars_by_scala_version = {}
         for jar in latest_server_jars:
-            scala_version = jar.split("_")[-1].strip(".jar")
+            scala_version = get_scala_version_from_server_jar(jar)
             server_jars_by_scala_version[scala_version] = jar
-        return server_jars_by_scala_version
+        self.scalavista_server_jars = server_jars_by_scala_version
 
     def initialize(self):
         if not self.initialized:
 
-            if self.nvim.call("exists", "g:scalavista_server_jars"):
-                self.scalavista_server_jars = self.nvim.eval("g:scalavista_server_jars")
-            else:
-                self.scalavista_server_jars = self.locate_server_jars()
+            self.locate_server_jars()
 
             if self.nvim.call("exists", "g:scalavista_default_scala_version"):
                 self.default_scala_version = self.nvim.eval(
@@ -180,10 +173,7 @@ class Scalavista(object):
                 "timer_start", 500, "ScalavistaRefresh", {"repeat": -1}
             )
             self.server_start_timer = self.nvim.call(
-                "timer_start",
-                5000,
-                "ScalavistaConditionallyStartServer",
-                {"repeat": MAX_SERVER_LAUNCH_ATTEMPTS},
+                "timer_start", 500, "ScalavistaConditionallyStartServer", {"repeat": -1}
             )
             self.initialized = True
             self.check_health()
@@ -197,36 +187,59 @@ class Scalavista(object):
     def notify(self, msg):
         self.nvim.out_write("scalavista[info]> {}\n".format(msg))
 
+    def warn(self, msg):
+        self.nvim.out_write("scalavista[warn]> {}\n".format(msg))
+
     def error(self, msg):
         self.nvim.out_write("scalavista[error]> {}\n".format(msg))
 
     @pynvim.command("ScalavistaDownloadServerJars")
     def download_server_jars(self):
-        releases = requests.get(
-            "https://api.github.com/repos/buntec/scalavista-server/releases"
-        ).json()
-        for asset in releases[0]["assets"]:
-            name = asset["name"]
-            if name.startswith("scalavista-server") and name.endswith(".jar"):
-                download_url = asset["browser_download_url"]
-                self.notify("attempting to download {} ...".format(download_url))
-                download_file(download_url, name)
-                self.notify("successfully downloaded {}".format(name))
+        try:
+            releases = requests.get(
+                "https://api.github.com/repos/buntec/scalavista-server/releases"
+            ).json()
+        except Exception:
+            self.error(
+                "failed to query github for latest server releases - no internet or behind proxy?"
+            )
+        else:
+            for asset in releases[0]["assets"]:
+                name = asset["name"]
+                if is_valid_server_jar(name):
+                    download_url = asset["browser_download_url"]
+                    self.notify("attempting to download {} ...".format(download_url))
+                    write_path = os.path.join(self.get_plugin_path(), name)
+                    download_file(download_url, write_path)
+                    self.notify(
+                        "successfully downloaded {} to {}".format(name, write_path)
+                    )
+            self.locate_server_jars()
 
     @pynvim.command("ScalavistaStartServer")
     def start_server(self):
         scala_version = self.get_scala_version()
         if scala_version not in self.scalavista_server_jars:
             self.error(
-                "no server jar found for Scala version {} - run :ScalavistaDownloadServerJars".format(
+                "no server jar found for Scala {} - run :ScalavistaDownloadServerJars".format(
                     scala_version
                 )
             )
             return
         server_jar = self.scalavista_server_jars[self.get_scala_version()]
+        self.try_to_start_server = False
         self.server_job = self.nvim.call(
             "jobstart",
-            ["java", "-jar", server_jar, "--uuid", self.uuid, "--port", self.server_port],
+            [
+                "java",
+                "-jar",
+                server_jar,
+                "--uuid",
+                self.uuid,
+                "--port",
+                self.server_port,
+            ],
+            {"on_exit": "ScalavistaServerFailed"},
         )
         if self.server_job > 0:
             self.notify("starting scalavista server from {}".format(server_jar))
@@ -236,19 +249,24 @@ class Scalavista(object):
     @pynvim.command("ScalavistaStopServer")
     def stop_server(self):
         try:
+            self.nvim.call("chansend", self.server_job, ["x", ""])
             self.nvim.call("jobstop", self.server_job)
         except Exception:
             pass
 
+    @pynvim.function("ScalavistaServerFailed")
+    def resume_server_start(self, code):
+        self.warn("scalavista server exited - will try to restart...".format(code))
+        self.try_to_start_server = True
+
     @pynvim.function("ScalavistaConditionallyStartServer")
     def conditionally_start_server(self, timer):
         if (
-            not self.server_alive
+            self.try_to_start_server
+            and not self.server_alive
             and self.get_scala_version() in self.scalavista_server_jars
         ):
-            self.server_port += (
-                1
-            )  # perhaps another instance with different uuid already serving on this port
+            self.server_port = random.randint(MIN_PORT, MAX_PORT)
             self.start_server()
 
     def check_health(self):
@@ -256,8 +274,11 @@ class Scalavista(object):
             res = requests.get(self.server_url() + "/alive")
             if res.status_code == requests.codes.ok and res.text == self.uuid:
                 if not self.server_alive:
+                    version = self.get_server_version()
                     self.notify(
-                        "scalavista server now live at {}".format(self.server_url())
+                        "scalavista server {} now live at {}".format(
+                            version, self.server_url()
+                        )
                     )
                 self.server_alive = True
             else:
@@ -268,7 +289,7 @@ class Scalavista(object):
     def get_server_version(self):
         try:
             response = requests.get(self.server_url() + "/version")
-            return response.tet
+            return response.text
         except Exception:
             self.error("failed to get scalavista server version")
             return "?"
@@ -277,9 +298,9 @@ class Scalavista(object):
         try:
             latest_version = self.get_latest_server_version()
             response = requests.get(self.server_url() + "/version")
-            return (response.status_code != requests.codes.ok) or not compare_versions(
-                latest_version, response.text
-            )
+            return (response.status_code != requests.codes.ok) or Version(
+                latest_version
+            ) > Version(response.text)
         except Exception:
             return False
 
@@ -497,11 +518,6 @@ class Scalavista(object):
     def scala_errors(self):
         self.update_errors_and_populate_quickfix()
 
-    @pynvim.command("ScalavistaSetPort", nargs="1")
-    def set_port(self, args):
-        self.set_server_port(args[0])
-        self.check_health()
-
     @pynvim.command("ScalavistaHealth")
     def scalavista_healthcheck(self):
         self.check_health()
@@ -533,6 +549,15 @@ class Scalavista(object):
     )
     def on_buf_leave(self, filename):
         self.reload_current_buffer()
+
+    @pynvim.autocmd(
+        "VimLeavePre", pattern="*.scala,*.java", eval='expand("<afile>")', sync=True
+    )
+    def on_vim_leave(self, filename):
+        self.nvim.call("timer_stop", self.refresh_timer)
+        self.nvim.call("timer_stop", self.server_start_timer)
+        self.nvim.eval("function ScalavistaServerFailed()\nendfunction")
+        self.stop_server()
 
     @pynvim.autocmd("TextChanged", pattern="*.scala,*.java")
     def on_text_changed(self):

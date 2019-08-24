@@ -18,7 +18,7 @@ language-server, which in turn is a thin wrapper around Scala's presentation com
 ## Prerequisites
 
 * Neovim with Python3 support and the `pynvim` package installed (`pip3 install pynvim`);
-* [scalavista-server](https://github.com/buntec/scalavista-server);
+* Java: make sure `java` is on your `PATH`;
 * sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin are recommended.
 
 
@@ -33,6 +33,8 @@ Plug 'buntec/neovim-scalavista', { 'do': ':UpdateRemotePlugins' }
 
 ## Usage
 
-See [scalavista-server](https://github.com/buntec/scalavista-server) on how to set up
-and launch scalavista-server (easy!) - the plugin will connect to it upon opening
+Make sure you open neovim from the root of your project 
+(where scalavista.json resides).
+Call :ScalavistaDownloadServerJars to download the latest server jars
+from GitHub. A server instance is launched automatically upon opening
 any Scala source file.
