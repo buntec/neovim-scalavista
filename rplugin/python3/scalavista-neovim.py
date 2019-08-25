@@ -2,7 +2,7 @@ import json
 import os
 import re
 import random
-import fnmatch
+import inspect
 import uuid
 import requests
 import pynvim
@@ -81,7 +81,15 @@ class Scalavista(object):
     def server_url(self):
         return "http://localhost:{}".format(self.server_port)
 
-    @pynvim.command("ScalavistaLocateServerJars")
+    @pynvim.command("ScalavistaShowCommands")
+    def show_commands(self):
+        def predicate(fn):
+            return hasattr(fn, '_nvim_rpc_method_name') and getattr(fn, '_nvim_rpc_method_name').startswith('command:')
+
+        for name, fn in inspect.getmembers(self, predicate):
+            self.notify(getattr(fn, '_nvim_rpc_method_name'))
+
+    @pynvim.command("ScalavistaShowServerJars")
     def print_server_jars(self):
         self.locate_server_jars()
         self.notify(self.scalavista_server_jars)
@@ -216,7 +224,7 @@ class Scalavista(object):
                     )
             self.locate_server_jars()
 
-    @pynvim.command("ScalavistaStartServer")
+    # @pynvim.command("ScalavistaStartServer")
     def start_server(self):
         scala_version = self.get_scala_version()
         if scala_version not in self.scalavista_server_jars:
@@ -246,7 +254,7 @@ class Scalavista(object):
         else:
             self.error("failed to start scalavista server from {}".format(server_jar))
 
-    @pynvim.command("ScalavistaStopServer")
+    # @pynvim.command("ScalavistaStopServer")
     def stop_server(self):
         try:
             self.nvim.call("chansend", self.server_job, ["x", ""])
@@ -556,7 +564,11 @@ class Scalavista(object):
     def on_vim_leave(self, filename):
         self.nvim.call("timer_stop", self.refresh_timer)
         self.nvim.call("timer_stop", self.server_start_timer)
-        self.nvim.eval("function ScalavistaServerFailed()\nendfunction")
+        # the next line is a hack: when we exit nvim then 'on_exit' is called
+        # on the server process, but the 'ScalavistaServerFailed' callback
+        # is a rpc whose channel no longer exist so we have to overwrite the
+        # function with a no-op.
+        self.nvim.command('function! ScalavistaServerFailed(a, b, c)\nendfunction')
         self.stop_server()
 
     @pynvim.autocmd("TextChanged", pattern="*.scala,*.java")
