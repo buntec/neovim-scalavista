@@ -28,11 +28,8 @@ language server, which in turn is a thin wrapper around Scala's presentation com
 Using [vim-plug](https://github.com/junegunn/vim-plug):
 
 ```
-Plug 'buntec/neovim-scalavista', { 'do': [':UpdateRemotePlugins', :ScalavistaDownloadServerJars'] }
+Plug 'buntec/neovim-scalavista', { 'do': ':UpdateRemotePlugins' }
 ```
-
-The `:ScalavistaDownloadServerJars` command is optional (but convenient because it guarantees that you
-always use the latest version of the language server) and can also be executed manually.
 
 
 ## Usage

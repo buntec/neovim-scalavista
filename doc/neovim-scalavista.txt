@@ -21,12 +21,8 @@ INSTALL                                     *neovim-scalavista-install*
 Using [vim-plug](https://github.com/junegunn/vim-plug):
 
 >
-    Plug 'buntec/neovim-scalavista', {
-    \ 'do': [':UpdateRemotePlugins', ':ScalavistaDownloadServerJars'] }
+    Plug 'buntec/neovim-scalavista', { 'do': ':UpdateRemotePlugins' }
 <
-
-The `:ScalavistaDownloadServerJars` command is optional (but recommended) and
-can also be executed manually (see |neovim-scalavista-commands|).
 
 
 For an optimal auto-completion experience we recommend
@@ -40,7 +36,10 @@ USAGE                                       *neovim-scalavista-usage*
 
 
 Make sure you open neovim from the root of your project (where your `scalavista.json`
-resides, if any). A server instance is launched automatically upon opening any Scala or
+resides, if any). On activation the plugin will query GitHub for
+the latest version of the scalavista language server. If a newer
+version is found the user is prompeted to allow automatic downloading.
+A server instance is launched automatically upon opening any Scala or
 Java source file. See |neovim-scalavista-commands| for a list of supported
 commands. You will probably want to map the most commonly used ones to keyboard
 shorcuts, e.g.,
@@ -84,7 +83,7 @@ OPTIONS                                     *neovim-scalavista-options*
 
 g:scalavista_default_scala_version          The Scala version to use when
                                             no `scalavista.json` is found;
-                                            defaults to '2.13'
+                                            defaults to '2.13'.
 
 
 ABOUT                                       *neovim-scalavista-about*
