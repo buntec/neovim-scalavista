@@ -67,9 +67,8 @@ class Scalavista(object):
         self.errors = ""
         self.server_port = random.randint(MIN_PORT, MAX_PORT)
         self.server_alive = False
-        self.try_to_start_server = False
+        self.try_to_start_server = True
         self.uuid = uuid.uuid4().hex
-        self.scalavista_server_jars = {}
 
     def get_plugin_path(self):
         runtime_paths = self.nvim.list_runtime_paths()
@@ -81,18 +80,21 @@ class Scalavista(object):
     def server_url(self):
         return "http://localhost:{}".format(self.server_port)
 
-    @pynvim.command("ScalavistaShowCommands")
+    @pynvim.command("ScalavistaCommands")
     def show_commands(self):
         def predicate(fn):
-            return hasattr(fn, '_nvim_rpc_method_name') and getattr(fn, '_nvim_rpc_method_name').startswith('command:')
+            return hasattr(fn, "_nvim_rpc_method_name") and getattr(
+                fn, "_nvim_rpc_method_name"
+            ).startswith("command:")
 
         for name, fn in inspect.getmembers(self, predicate):
-            self.notify(getattr(fn, '_nvim_rpc_method_name'))
+            command_name = getattr(fn, "_nvim_rpc_method_name").lstrip('command:')
+            self.notify(command_name)
 
-    @pynvim.command("ScalavistaShowServerJars")
+    @pynvim.command("ScalavistaServerJars")
     def print_server_jars(self):
         self.locate_server_jars()
-        self.notify(self.scalavista_server_jars)
+        self.notify(self.locate_server_jars())
 
     def locate_server_jars(self):
         runtime_paths = self.nvim.list_runtime_paths()
@@ -119,7 +121,7 @@ class Scalavista(object):
         for jar in latest_server_jars:
             scala_version = get_scala_version_from_server_jar(jar)
             server_jars_by_scala_version[scala_version] = jar
-        self.scalavista_server_jars = server_jars_by_scala_version
+        return server_jars_by_scala_version
 
     def initialize(self):
         if not self.initialized:
@@ -151,8 +153,6 @@ class Scalavista(object):
                 )
                 self.scala_version = None
                 pass
-
-            self.start_server()
 
             self.nvim.command("highlight link ScalavistaUnderlineStyle SpellBad")
             self.nvim.command(
@@ -222,19 +222,9 @@ class Scalavista(object):
                     self.notify(
                         "successfully downloaded {} to {}".format(name, write_path)
                     )
-            self.locate_server_jars()
 
     # @pynvim.command("ScalavistaStartServer")
-    def start_server(self):
-        scala_version = self.get_scala_version()
-        if scala_version not in self.scalavista_server_jars:
-            self.error(
-                "no server jar found for Scala {} - run :ScalavistaDownloadServerJars".format(
-                    scala_version
-                )
-            )
-            return
-        server_jar = self.scalavista_server_jars[self.get_scala_version()]
+    def start_server(self, server_jar):
         self.try_to_start_server = False
         self.server_job = self.nvim.call(
             "jobstart",
@@ -254,7 +244,7 @@ class Scalavista(object):
         else:
             self.error("failed to start scalavista server from {}".format(server_jar))
 
-    # @pynvim.command("ScalavistaStopServer")
+    @pynvim.command("ScalavistaRestartServer")
     def stop_server(self):
         try:
             self.nvim.call("chansend", self.server_job, ["x", ""])
@@ -270,12 +260,14 @@ class Scalavista(object):
     @pynvim.function("ScalavistaConditionallyStartServer")
     def conditionally_start_server(self, timer):
         if (
-            self.try_to_start_server
-            and not self.server_alive
-            and self.get_scala_version() in self.scalavista_server_jars
+            self.try_to_start_server and not self.server_alive
         ):
-            self.server_port = random.randint(MIN_PORT, MAX_PORT)
-            self.start_server()
+            scalavista_server_jars = self.locate_server_jars()
+            scala_version = self.get_scala_version()
+            if scala_version in scalavista_server_jars:
+                server_jar = scalavista_server_jars[scala_version]
+                self.server_port = random.randint(MIN_PORT, MAX_PORT)
+                self.start_server(server_jar)
 
     def check_health(self):
         try:
@@ -568,7 +560,7 @@ class Scalavista(object):
         # on the server process, but the 'ScalavistaServerFailed' callback
         # is a rpc whose channel no longer exist so we have to overwrite the
         # function with a no-op.
-        self.nvim.command('function! ScalavistaServerFailed(a, b, c)\nendfunction')
+        self.nvim.command("function! ScalavistaServerFailed(a, b, c)\nendfunction")
         self.stop_server()
 
     @pynvim.autocmd("TextChanged", pattern="*.scala,*.java")

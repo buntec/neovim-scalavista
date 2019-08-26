@@ -3,16 +3,33 @@
 neovim-scalavista - IDE-like features for Scala in Neovim.
 
 
-INSTALL                                       *neovim-scalavista-install*
+PREREQUISITES                               *neovim-scalavista-prerequisites*
+
+1. Neovim with Python3 support (|:checkhealth|) and the `pynvim` package
+installed (`pip3 install pynvim`);
+
+2. Java (version >= 8): make sure the `java` executable is on your `PATH`;
+
+3. sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista)
+plugin are recommended for larger projects and those with external
+dependencies.
+
+
+
+INSTALL                                     *neovim-scalavista-install*
 
 Using [vim-plug](https://github.com/junegunn/vim-plug):
 
 >
-    Plug 'buntec/neovim-scalavista', { 'do': ':UpdateRemotePlugins' }
+    Plug 'buntec/neovim-scalavista', {
+    \ 'do': [':UpdateRemotePlugins', ':ScalavistaDownloadServerJars'] }
 <
 
+The `:ScalavistaDownloadServerJars` command is optional (but recommended) and
+can also be executed manually (see |neovim-scalavista-commands|).
 
-For an optimal auto-completion experience, we recommend
+
+For an optimal auto-completion experience we recommend
 
 >
     set completeopt=longest,menuone
@@ -22,33 +39,55 @@ For an optimal auto-completion experience, we recommend
 USAGE                                       *neovim-scalavista-usage*
 
 
-See [scalavista-server](https://github.com/buntec/scalavista-server) on how 
-to install and launch scalavista-server.
-Once a server is running, Neovim will connect to it upon opening any Scala source file.
+Make sure you open neovim from the root of your project (where your `scalavista.json`
+resides, if any). A server instance is launched automatically upon opening any Scala or
+Java source file. See |neovim-scalavista-commands| for a list of supported
+commands. You will probably want to map the most commonly used ones to keyboard
+shorcuts, e.g.,
+>
+    autocmd FileType scala nnoremap
+    \ <silent> <buffer> <localleader>t :ScalavistaType<CR>
+    autocmd FileType scala nnoremap
+    \ <silent> <buffer> <localleader>d :ScalavistaDoc<CR>
+    autocmd FileType scala nnoremap
+    \ <silent> <buffer> <localleader>g :ScalavistaGoto<CR>
+<
+Autocompletion is based on Omni completion - see |compl-omni|.
 
 
 COMMANDS                                    *neovim-scalavista-commands*
+
+:ScalavistaCommands             Show all available commands (follow with
+                                |:messages| to see the full output).
+
+:ScalavistaDownloadServerJars   Download the latest server jars from GitHub.
 
 :ScalavistaType                 Show type of symbol under cursors.
 
 :ScalavistaGoto                 Jump to definition of symbol under cursor.
 
-:ScalavistaDoc                  Show Scaladoc for symbol under cursor
+:ScalavistaDoc                  Show Scaladoc for symbol under cursor.
 
-:ScalavistaErrors               Update quickfix list with errors. 
-                                Not usually needed as this is run 
-                                automatically once per second if not in 
-                                insert mode.
+:ScalavistaErrors               Update |quickfix| list with errors.
+                                Not usually needed as this is run automatically
+                                every 500ms when not in insert mode.
 
-:ScalavistaHealth               Test connection to the scalavista server
-                                and check its version.
+:ScalavistaHealth               Test connection to server.
 
-:ScalavistaSetPort [port]       Only needed if the scalavista server is 
-                                not listening on the default port (9317).
+:ScalavistaServerJars           Show available server jars (follow with
+                                |:messages| to see the full output).
+
+:ScalavistaRestartServer        Restart the server.
+
+
+OPTIONS                                     *neovim-scalavista-options*
+
+g:scalavista_default_scala_version          The Scala version to use when
+                                            no `scalavista.json` is found;
+                                            defaults to '2.13'
 
 
 ABOUT                                       *neovim-scalavista-about*
 
-GitHub:  https://github.com/buntec/neovim-scalavista
-License: MIT
+GitHub:  https://github.com/buntec/neovim-scalavista License: MIT
 
