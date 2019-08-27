@@ -25,24 +25,17 @@ Using [vim-plug](https://github.com/junegunn/vim-plug):
 <
 
 
-For an optimal auto-completion experience we recommend
-
->
-    set completeopt=longest,menuone
-<
-
-
 USAGE                                       *neovim-scalavista-usage*
 
 
-Make sure you open neovim from the root of your project (where your `scalavista.json`
-resides, if any). On activation the plugin will query GitHub for
+Make sure you open neovim from the root of your project (where your
+`scalavista.json` resides). On activation the plugin will query GitHub for
 the latest version of the scalavista language server. If a newer
 version is found the user is prompeted to allow automatic downloading.
 A server instance is launched automatically upon opening any Scala or
 Java source file. See |neovim-scalavista-commands| for a list of supported
-commands. You will probably want to map the most commonly used ones to keyboard
-shorcuts, e.g.,
+commands. You will probably want to map the most commonly used ones to
+keyboard shorcuts, e.g.,
 >
     autocmd FileType scala nnoremap
     \ <silent> <buffer> <localleader>t :ScalavistaType<CR>
@@ -51,7 +44,16 @@ shorcuts, e.g.,
     autocmd FileType scala nnoremap
     \ <silent> <buffer> <localleader>g :ScalavistaGoto<CR>
 <
-Autocompletion is based on Omni completion - see |compl-omni|.
+Autocompletion is based on Omni completion - see |compl-omni|. It works
+well with [Deoplete](https://github.com/Shougo/deoplete.nvim); simply add this
+to your `init.vim`:
+
+>
+    call deoplete#custom#var('omni', 'input_patterns', {
+    \ 'scala': '[^. *\t]\.\w*',
+    \})
+<
+
 
 
 COMMANDS                                    *neovim-scalavista-commands*
@@ -71,7 +73,7 @@ COMMANDS                                    *neovim-scalavista-commands*
                                 Not usually needed as this is run automatically
                                 every 500ms when not in insert mode.
 
-:ScalavistaHealth               Test connection to server.
+:ScalavistaHealth               Test connection to language server.
 
 :ScalavistaServerJars           Show available server jars (follow with
                                 |:messages| to see the full output).
@@ -88,5 +90,6 @@ g:scalavista_default_scala_version          The Scala version to use when
 
 ABOUT                                       *neovim-scalavista-about*
 
-GitHub:  https://github.com/buntec/neovim-scalavista License: MIT
+GitHub:  https://github.com/buntec/neovim-scalavista
+License: MIT
 

@@ -7,7 +7,7 @@ A Neovim plugin that provides IDE-like functionality for the Scala language (2.1
 * Show type under cursor (`:ScalavistaType`);
 * Jump to definition (`:ScalavistaGoto` - does not currently work for external dependencies);
 * Show Scaladoc (`:ScalavistaDoc`);
-* Auto-completion (via Omni completion);
+* Auto-completion;
 * Linting (compiler errors and warnings show up as you type).
 
 
