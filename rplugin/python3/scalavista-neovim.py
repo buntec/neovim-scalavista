@@ -85,7 +85,8 @@ class Scalavista(object):
         self.server_alive = False
         self.try_to_start_server = True
         self.uuid = uuid.uuid4().hex
-        self.log_file = open('scalavista.log', 'w', buffering=1)
+        self.log_file = open("scalavista.log", "w", buffering=1)
+        self.notify_on_server_exit = True
 
     def get_global_var_or_else(self, var_name, default_value):
         full_var_name = "g:{}".format(var_name)
@@ -112,7 +113,7 @@ class Scalavista(object):
             ).startswith("command:")
 
         for name, fn in inspect.getmembers(self, predicate):
-            command_name = getattr(fn, "_nvim_rpc_method_name").lstrip('command:')
+            command_name = getattr(fn, "_nvim_rpc_method_name").lstrip("command:")
             self.notify(command_name)
 
     @pynvim.command("ScalavistaServerJars")
@@ -155,7 +156,9 @@ class Scalavista(object):
         local_jars = self.locate_server_jars()
         if self.scala_version not in local_jars:
             return False
-        local_version = Version(get_scalavista_version_from_server_jar(local_jars[self.scala_version]))
+        local_version = Version(
+            get_scalavista_version_from_server_jar(local_jars[self.scala_version])
+        )
         for jar in latest_jars:
             if get_scala_version_from_server_jar(jar) == self.scala_version:
                 latest_version = Version(get_scalavista_version_from_server_jar(jar))
@@ -165,8 +168,11 @@ class Scalavista(object):
 
     def check_server_jars_and_prompt_for_download(self):
         if not self.server_jars_are_up_to_date():
-            response = self.nvim.call("input", "scalavista[info]> you don't have the latest server jar - download from GitHub (y/n)?")
-            if response.lower() == 'y':
+            response = self.nvim.call(
+                "input",
+                "scalavista[info]> you don't have the latest server jar - download from GitHub (y/n)?",
+            )
+            if response.lower() == "y":
                 self.download_server_jars(self.scala_version)
         else:
             self.notify("server jars are up-to-date")
@@ -174,8 +180,10 @@ class Scalavista(object):
     def initialize(self):
         if not self.initialized:
 
-            self.scala_version = self.get_global_var_or_else('scalavista_default_scala_version', '2.13')
-            if self.get_global_var_or_else('scalavista_debug_mode', 0) != 0:
+            self.scala_version = self.get_global_var_or_else(
+                "scalavista_default_scala_version", "2.13"
+            )
+            if self.get_global_var_or_else("scalavista_debug_mode", 0) != 0:
                 self.is_debug = True
             else:
                 self.is_debug = False
@@ -201,11 +209,15 @@ class Scalavista(object):
             self.check_server_jars_and_prompt_for_download()
 
             if not self.suitable_server_jar_available():
-                self.error("unable to start server because no suitable server jar was found - try :ScalavistaDownloadServerJars")
+                self.error(
+                    "unable to start server because no suitable server jar was found - try :ScalavistaDownloadServerJars"
+                )
 
             if not self.java_is_available():
                 self.try_to_start_server = False
-                self.error("unable to start server because no 'java' executable was found on your PATH")
+                self.error(
+                    "unable to start server because no 'java' executable was found on your PATH"
+                )
 
             self.nvim.command("highlight link ScalavistaUnderlineStyle SpellBad")
             self.nvim.command(
@@ -256,14 +268,15 @@ class Scalavista(object):
         try:
             jars = get_urls_of_latest_server_jars()
             for jar, download_url in jars.items():
-                if scala_version is not None and get_scala_version_from_server_jar(jar) != scala_version:
+                if (
+                    scala_version is not None
+                    and get_scala_version_from_server_jar(jar) != scala_version
+                ):
                     continue
                 self.notify("attempting to download {} ...".format(download_url))
                 write_path = os.path.join(self.get_plugin_path(), jar)
                 download_file(download_url, write_path)
-                self.notify(
-                    "successfully downloaded {} to {}".format(jar, write_path)
-                )
+                self.notify("successfully downloaded {} to {}".format(jar, write_path))
         except Exception:
             self.error(
                 "failed to download server jar(s) - no internet or behind proxy?"
@@ -274,22 +287,26 @@ class Scalavista(object):
         return jobid > 0
 
     def start_server(self, server_jar):
-        self.try_to_start_server = False
-        flags = ["java",
-                 "-jar",
-                 server_jar,
-                 "--uuid",
-                 self.uuid,
-                 "--port",
-                 self.server_port]
+        flags = [
+            "java",
+            "-jar",
+            server_jar,
+            "--uuid",
+            self.uuid,
+            "--port",
+            self.server_port,
+        ]
         if self.is_debug:
-            flags.append('--debug')
+            flags.append("--debug")
+        self.try_to_start_server = False
         self.server_job = self.nvim.call(
             "jobstart",
             flags,
-            {"on_exit": "ScalavistaServerFailed",
-             "on_stdout": "ScalavistaWriteToLog",
-             "on_stderr": "ScalavistaWriteToLog"},
+            {
+                "on_exit": "ScalavistaServerFailed",
+                "on_stdout": "ScalavistaWriteToLog",
+                "on_stderr": "ScalavistaWriteToLog",
+            },
         )
         if self.server_job > 0:
             self.notify("starting scalavista server from {}".format(server_jar))
@@ -298,27 +315,31 @@ class Scalavista(object):
 
     @pynvim.command("ScalavistaRestartServer")
     def stop_server(self):
+        self.notify_on_server_exit = False
         try:
             self.nvim.call("chansend", self.server_job, ["x", ""])
             self.nvim.call("jobstop", self.server_job)
         except Exception:
             pass
+        self.try_to_start_server = True
+        self.notify_on_server_exit = True
 
     @pynvim.function("ScalavistaServerFailed")
     def resume_server_start(self, code):
-        self.warn("scalavista server exited - will try to restart...".format(code))
-        self.try_to_start_server = True
+        if self.notify_on_server_exit:
+            self.warn(
+                "scalavista server failed: inspect 'scalavista.log' or retry with :ScalavistaRestartServer".format(
+                    code
+                )
+            )
 
     @pynvim.function("ScalavistaWriteToLog")
     def write_to_log(self, data):
-        self.log_file.write(str('\n'.join(data[1])))
-        # self.log_file.write('\n')
+        self.log_file.write(str("\n".join(data[1])))
 
     @pynvim.function("ScalavistaConditionallyStartServer")
     def conditionally_start_server(self, timer):
-        if (
-            self.try_to_start_server and not self.server_alive
-        ):
+        if self.try_to_start_server and not self.server_alive:
             scalavista_server_jars = self.locate_server_jars()
             if self.scala_version in scalavista_server_jars:
                 server_jar = scalavista_server_jars[self.scala_version]
@@ -493,7 +514,30 @@ class Scalavista(object):
             return [comp for comp in type_completion if comp["word"].startswith(base)]
 
     @pynvim.command("ScalavistaType")
-    def get_type(self):
+    def get_type_at(self):
+        tpe = self.get_info_at("/ask-type-at")
+        if tpe is not None:
+            self.nvim.out_write(tpe + "\n")
+        else:
+            self.error("server error when getting type under cursor")
+
+    @pynvim.command("ScalavistaKind")
+    def get_kind_at(self):
+        kind = self.get_info_at("/ask-kind-at")
+        if kind is not None:
+            self.nvim.out_write(kind + "\n")
+        else:
+            self.error("server error when getting kind under cursor")
+
+    @pynvim.command("ScalavistaFullyQualifiedName")
+    def get_fully_qualified_name_at(self):
+        fqn = self.get_info_at("/ask-fully-qualified-name-at")
+        if fqn is not None:
+            self.nvim.out_write(fqn + "\n")
+        else:
+            self.error("server error when getting fully qualified name under cursor")
+
+    def get_info_at(self, endpoint):
         if not self.server_alive:
             return
         window = self.nvim.current.window
@@ -503,11 +547,11 @@ class Scalavista(object):
         content = "\n".join(buf)
         file_name = self.nvim.call("expand", "%:p")
         data = {"filename": file_name, "fileContents": content, "offset": offset}
-        resp = requests.post(self.server_url() + "/ask-type-at", json=data)
+        resp = requests.post(self.server_url() + endpoint, json=data)
         if resp.status_code == requests.codes.ok:
-            self.nvim.out_write(resp.text + "\n")
+            return resp.text
         else:
-            self.error("failed to get type")
+            return None
 
     @pynvim.command("ScalavistaGoto")
     def get_pos(self):

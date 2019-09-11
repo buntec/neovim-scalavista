@@ -63,7 +63,11 @@ COMMANDS                                    *neovim-scalavista-commands*
 
 :ScalavistaDownloadServerJars   Download the latest server jars from GitHub.
 
-:ScalavistaType                 Show type of symbol under cursors.
+:ScalavistaType                 Show type of symbol under cursor.
+
+:ScalavistaKind                 Show kind of symbol under cursor.
+
+:ScalavistaFullyQualifiedName   Show fully qualified name of symbol under cursor.
 
 :ScalavistaGoto                 Jump to definition of symbol under cursor.
 
