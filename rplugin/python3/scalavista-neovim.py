@@ -85,6 +85,14 @@ class Scalavista(object):
         self.server_alive = False
         self.try_to_start_server = True
         self.uuid = uuid.uuid4().hex
+        self.log_file = open('scalavista.log', 'w', buffering=1)
+
+    def get_global_var_or_else(self, var_name, default_value):
+        full_var_name = "g:{}".format(var_name)
+        if self.nvim.call("exists", full_var_name):
+            return self.nvim.eval(full_var_name)
+        else:
+            return default_value
 
     def get_plugin_path(self):
         runtime_paths = self.nvim.list_runtime_paths()
@@ -166,12 +174,11 @@ class Scalavista(object):
     def initialize(self):
         if not self.initialized:
 
-            if self.nvim.call("exists", "g:scalavista_default_scala_version"):
-                self.scala_version = self.nvim.eval(
-                    "g:scalavista_default_scala_version"
-                )
+            self.scala_version = self.get_global_var_or_else('scalavista_default_scala_version', '2.13')
+            if self.get_global_var_or_else('scalavista_debug_mode', 0) != 0:
+                self.is_debug = True
             else:
-                self.scala_version = "2.13"
+                self.is_debug = False
 
             try:
                 cwd = self.nvim.call("getcwd")
@@ -268,18 +275,21 @@ class Scalavista(object):
 
     def start_server(self, server_jar):
         self.try_to_start_server = False
+        flags = ["java",
+                 "-jar",
+                 server_jar,
+                 "--uuid",
+                 self.uuid,
+                 "--port",
+                 self.server_port]
+        if self.is_debug:
+            flags.append('--debug')
         self.server_job = self.nvim.call(
             "jobstart",
-            [
-                "java",
-                "-jar",
-                server_jar,
-                "--uuid",
-                self.uuid,
-                "--port",
-                self.server_port,
-            ],
-            {"on_exit": "ScalavistaServerFailed"},
+            flags,
+            {"on_exit": "ScalavistaServerFailed",
+             "on_stdout": "ScalavistaWriteToLog",
+             "on_stderr": "ScalavistaWriteToLog"},
         )
         if self.server_job > 0:
             self.notify("starting scalavista server from {}".format(server_jar))
@@ -298,6 +308,11 @@ class Scalavista(object):
     def resume_server_start(self, code):
         self.warn("scalavista server exited - will try to restart...".format(code))
         self.try_to_start_server = True
+
+    @pynvim.function("ScalavistaWriteToLog")
+    def write_to_log(self, data):
+        self.log_file.write(str('\n'.join(data[1])))
+        # self.log_file.write('\n')
 
     @pynvim.function("ScalavistaConditionallyStartServer")
     def conditionally_start_server(self, timer):
@@ -539,7 +554,7 @@ class Scalavista(object):
         if resp.status_code == requests.codes.ok:
             doc_string = resp.text
             if not doc_string:
-                self.error("no scaladoc found")
+                # self.error("no scaladoc found")
                 return
             # current_buffer_name = self.nvim.call('bufname', '%')
             self.nvim.command('let help = "{}"'.format(doc_string))
@@ -620,4 +635,5 @@ class Scalavista(object):
         for item in self.qflist:
             if (item["bufnr"] == buf_num) and (item["lnum"] == line_num):
                 messages.append(item["text"])
-        self.nvim.out_write(" | ".join(messages) + "\n")
+        if messages:
+            self.nvim.out_write(" | ".join(messages) + "\n")

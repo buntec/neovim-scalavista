@@ -19,8 +19,6 @@ language server, which in turn is a thin wrapper around Scala's presentation com
 
 * Neovim with Python3 support and the `pynvim` package installed (`pip3 install pynvim`);
 * Java (version >= 8): make sure the `java` executable is on your `PATH`;
-* sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin are 
-  recommended for larger projects and those with external dependencies.
 
 
 ## Install
