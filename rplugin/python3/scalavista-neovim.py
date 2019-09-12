@@ -480,8 +480,13 @@ class Scalavista(object):
         )
         if resp.status_code == requests.codes.ok:
             res = []
-            for word, menu in resp.json():
-                res.append({"word": word, "menu": menu, "dup": 1})
+            for word, menu, kind in resp.json():
+                kind_abbr = 'v'
+                if kind == 'method':
+                    kind_abbr = 'f'
+                elif kind in ['class', 'trait', 'object']:
+                    kind_abbr = 'm'
+                res.append({"word": word, "menu": menu, "kind": kind_abbr, "dup": 1})
             return res
         self.error("failed to get {} completion".format(completion_type))
         return []

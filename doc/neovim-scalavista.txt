@@ -10,9 +10,10 @@ installed (`pip3 install pynvim`);
 
 2. Java (version >= 8): make sure the `java` executable is on your `PATH`;
 
-3. sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista)
-plugin are recommended for larger projects and those with external
-dependencies.
+3. Creating a `scalavista.json` file at the root of your project is
+required if you have external dependencies.
+See [scalavista-server](https://github.com/buntec/scalavista-server) for
+details.
 
 
 
@@ -44,13 +45,13 @@ keyboard shorcuts, e.g.,
     autocmd FileType scala nnoremap
     \ <silent> <buffer> <localleader>g :ScalavistaGoto<CR>
 <
-Autocompletion is based on Omni completion - see |compl-omni|. It works
+Autocompletion is based on Omni completion - see |compl-omni|. It also works
 well with [Deoplete](https://github.com/Shougo/deoplete.nvim); simply add this
 to your `init.vim`:
 
 >
     call deoplete#custom#var('omni', 'input_patterns', {
-    \ 'scala': '[^. *\t]\.\w*',
+    \ 'scala': ['[^. *\t]\.\w*', '\s\w+', '^\w+'],
     \})
 <
 
@@ -90,6 +91,9 @@ OPTIONS                                     *neovim-scalavista-options*
 g:scalavista_default_scala_version          The Scala version to use when
                                             no `scalavista.json` is found;
                                             defaults to '2.13'.
+
+g:scalavista_debug_mode                     Toggles debug mode for more
+                                            extensive logs; defaults to 0.
 
 
 ABOUT                                       *neovim-scalavista-about*
