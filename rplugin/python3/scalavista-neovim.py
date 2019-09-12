@@ -85,7 +85,6 @@ class Scalavista(object):
         self.server_alive = False
         self.try_to_start_server = True
         self.uuid = uuid.uuid4().hex
-        self.log_file = open("scalavista.log", "w", buffering=1)
         self.notify_on_server_exit = True
 
     def get_global_var_or_else(self, var_name, default_value):
@@ -179,7 +178,7 @@ class Scalavista(object):
 
     def initialize(self):
         if not self.initialized:
-
+            self.log_file = open("scalavista.log", "w", buffering=1)
             self.scala_version = self.get_global_var_or_else(
                 "scalavista_default_scala_version", "2.13"
             )
